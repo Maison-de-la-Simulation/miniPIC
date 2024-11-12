@@ -22,7 +22,20 @@ jobs:
         python -m pip install --upgrade pip
         pip3 install numpy
 
-    - name: Compile and run minipic
+    - name: Compile and run minipic sequential
       run: |
-        cd tests
+        cp -r tests sequential
+        cd sequential
         python run.py -c g++ -g sequential
+
+    - name: Compile and run minipic openmp loop
+      run: |
+        cp -r tests openmp_loop
+        cd openmp_loop
+        python run.py -c g++ -g openmp
+
+    - name: Compile and run minipic openmp task
+      run: |
+        cp -r tests openmp_task
+        cd openmp_task
+        python run.py -c g++ -g openmp_task

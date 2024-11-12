@@ -2,6 +2,8 @@
 
 <img title="Title" alt="title" src="./doc/images/title.png" height="100">
 
+![CI](https://github.com/Maison-de-la-Simulation/miniPIC/actions/workflows/minipic.yml/badge.svg)
+
 ## Presentation
 
 miniPIC is a playground for computer science and HPC experiments applied to the Particle-In-Cell method.
