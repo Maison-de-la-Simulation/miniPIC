@@ -63,3 +63,20 @@ jobs:
 #         cp -r tests openmp_task
 #         cd openmp_task
 #         python run.py -c g++ -g openmp_task
+
+#   eventify:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#     - uses: actions/checkout@v4
+
+#     - name: environment
+#       run: |
+#         python -m pip install --upgrade pip
+#         pip3 install numpy
+#         sudo apt-get install g++-13
+#         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 13
+
+#     - name: Compile and run minipic eventify
+#       run: |
+#         cp -r tests eventify
