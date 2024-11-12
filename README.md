@@ -1,5 +1,3 @@
-![logo](./doc/images/logo.png)
-
 <img title="Title" alt="title" src="./doc/images/title.png" height="100">
 
 ![CI](https://github.com/Maison-de-la-Simulation/miniPIC/actions/workflows/minipic.yml/badge.svg)
