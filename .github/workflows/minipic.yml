@@ -80,7 +80,7 @@ jobs:
         wget https://code.fmsolvr.fz-juelich.de/ATML-CAP/ETS/archive/main.tar.gz
         tar -xvf main.tar.gz
         ls -al
-        mv main eventify-source
+        mv ets eventify-source
         cmake -S eventify-source -B eventify-build -DCMAKE_INSTALL_PREFIX=eventify-install -DCMAKE_BUILD_TYPE=Release
         cmake --build eventify-build --config Release --target install --parallel
         export Eventify_DIR=$PWD/eventify-install/
