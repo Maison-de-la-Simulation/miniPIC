@@ -56,9 +56,10 @@ jobs:
         python -m pip install --upgrade pip
         pip3 install numpy
         sudo apt-get install g++-13
+        clang++ --version
 
     - name: Compile and run minipic openmp task
       run: |
         cp -r tests openmp_task
         cd openmp_task
-        python run.py -c g++ -g openmp_task
+        python run.py -c g++-13 -g openmp_task
