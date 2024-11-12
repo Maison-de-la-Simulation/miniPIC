@@ -1,4 +1,4 @@
-
+![logo](./doc/images/logo.png)
 
 <img title="Title" alt="title" src="./doc/images/title.png" height="100">
 
