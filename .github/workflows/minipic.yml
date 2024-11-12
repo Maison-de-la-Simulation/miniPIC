@@ -77,10 +77,7 @@ jobs:
 
     - name: install eventify
       run: |
-        wget https://code.fmsolvr.fz-juelich.de/ATML-CAP/ETS/archive/main.tar.gz
-        tar -xvf main.tar.gz
-        ls -al
-        mv ets eventify-source
+        git clone --recursive https://code.fmsolvr.fz-juelich.de/ATML-CAP/ETS.git eventify-source
         cmake -S eventify-source -B eventify-build -DCMAKE_INSTALL_PREFIX=eventify-install -DCMAKE_BUILD_TYPE=Release
         cmake --build eventify-build --config Release --target install --parallel
         export Eventify_DIR=$PWD/eventify-install/
