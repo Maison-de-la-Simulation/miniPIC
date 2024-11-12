@@ -1,0 +1,23 @@
+# __________________________________________________
+#
+# Workflow to compile and run minipic
+# __________________________________________________
+
+name: minipic
+
+run-name: Test minipic
+
+on: [push]
+
+jobs:
+
+  sequential:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Compile and run minipic
+      run: |
+        cd tests
+        py run.py -c g++ -g sequential
