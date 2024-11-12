@@ -20,4 +20,4 @@ jobs:
     - name: Compile and run minipic
       run: |
         cd tests
-        py run.py -c g++ -g sequential
+        python run.py -c g++ -g sequential
