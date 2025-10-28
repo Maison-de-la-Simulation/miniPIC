@@ -29,12 +29,12 @@ auto interpolate(ElectroMagn &em, Patch &patch) -> void {
 
   for (int is = 0; is < patch.n_species_m; is++) {
 
-    const int n_particles = patch.particles_m[is].size();
+    const size_t n_particles = patch.particles_m[is].size();
 
 #if defined(__MINIPIC_SIMD__)
 #pragma omp simd
 #endif
-    for (unsigned int part = 0; part < n_particles; part++) {
+    for (size_t part = 0; part < n_particles; part++) {
 
       // // Calculate normalized positions
       const auto ixn = patch.particles_m[is].x_(part) * inv_dx_m;
@@ -194,7 +194,7 @@ auto push(Patch &patch, double dt) -> void {
   // For each species
   for (int is = 0; is < patch.n_species_m; is++) {
 
-    const int n_particles = patch.particles_m[is].size();
+    const size_t n_particles = patch.particles_m[is].size();
 
     // q' = dt * (q/2m)
     const mini_float qp = patch.particles_m[is].charge_m * dt * 0.5 / patch.particles_m[is].mass_m;
@@ -202,7 +202,7 @@ auto push(Patch &patch, double dt) -> void {
 #if defined(__MINIPIC_SIMD__)
 #pragma omp simd
 #endif
-    for (int ip = 0; ip < n_particles; ++ip) {
+    for (size_t ip = 0; ip < n_particles; ++ip) {
 
       // 1/2 E
       mini_float px = qp * patch.particles_m[is].Ex_(ip);
@@ -263,7 +263,7 @@ auto push_momentum(Patch &patch, double dt) -> void {
   // for each species
   for (int is = 0; is < patch.n_species_m; is++) {
 
-    const int n_particles = patch.particles_m[is].size();
+    const size_t n_particles = patch.particles_m[is].size();
 
     // q' = dt * (q/2m)
     const mini_float qp = patch.particles_m[is].charge_m * dt * 0.5 / patch.particles_m[is].mass_m;
@@ -271,7 +271,7 @@ auto push_momentum(Patch &patch, double dt) -> void {
 #if defined(__MINIPIC_SIMD__)
 #pragma omp simd
 #endif
-    for (auto ip = 0; ip < n_particles; ++ip) {
+    for (size_t ip = 0; ip < n_particles; ++ip) {
 
       // 1/2 E
       mini_float px = qp * patch.particles_m[is].Ex_h(ip);
@@ -310,7 +310,7 @@ auto push_momentum(Patch &patch, double dt) -> void {
       patch.particles_m[is].mz_h(ip) = pz;
 
     } // End for each particles
-  }   // end for species
+  } // end for species
 }
 
 // _____________________________________________________________________
@@ -336,9 +336,9 @@ auto pushBC(Params &params, Patch &patch) -> void {
 
       for (int is = 0; is < patch.n_species_m; is++) {
 
-        unsigned int n_particles = patch.particles_m[is].size();
+        size_t n_particles = patch.particles_m[is].size();
 
-        for (unsigned int part = 0; part < n_particles; part++) {
+        for (size_t part = 0; part < n_particles; part++) {
 
           mini_float *pos[3] = {&patch.particles_m[is].x_(part),
                                 &patch.particles_m[is].y_(part),
@@ -367,7 +367,7 @@ auto pushBC(Params &params, Patch &patch) -> void {
     } else if (params.boundary_condition_code == 2) {
       for (int is = 0; is < patch.n_species_m; is++) {
 
-        unsigned int n_particles = patch.particles_m[is].size();
+        size_t n_particles = patch.particles_m[is].size();
 
         Vector<mini_float> &x = patch.particles_m[is].x_;
         Vector<mini_float> &y = patch.particles_m[is].y_;
@@ -377,7 +377,7 @@ auto pushBC(Params &params, Patch &patch) -> void {
         Vector<mini_float> &my = patch.particles_m[is].my_;
         Vector<mini_float> &mz = patch.particles_m[is].mz_;
 
-        for (unsigned int part = 0; part < n_particles; part++) {
+        for (size_t part = 0; part < n_particles; part++) {
 
           mini_float *pos[3] = {&x(part), &y(part), &z(part)};
 
@@ -400,8 +400,8 @@ auto pushBC(Params &params, Patch &patch) -> void {
         } // End loop on particles
 
       } // End loop on species
-    }   // if type of conditions
-  }     // if on border
+    } // if type of conditions
+  } // if on border
 }
 
 // _____________________________________________________________________
@@ -424,9 +424,9 @@ auto imbalance_operator(Params &params,
   // For each species
   for (int is = 0; is < patch.n_species_m; is++) {
 
-    const int n_particles = patch.particles_m[is].size();
+    const size_t n_particles = patch.particles_m[is].size();
 
-    for (int ip = 0; ip < n_particles; ++ip) {
+    for (size_t ip = 0; ip < n_particles; ++ip) {
 
       double x = patch.particles_m[is].x_h(ip);
       double y = patch.particles_m[is].y_h(ip);
@@ -472,7 +472,7 @@ auto project(Params &params, Patch &patch) -> void {
     // particles_m[is].check_sum();
 #endif
 
-    const int n_particles = patch.particles_m[is].size();
+    const size_t n_particles = patch.particles_m[is].size();
     if (n_particles > 0) {
 
       const mini_float inv_cell_volume_x_q =
@@ -497,7 +497,7 @@ auto project(Params &params, Patch &patch) -> void {
       Vector<mini_float> &y = patch.particles_m[is].y_;
       Vector<mini_float> &z = patch.particles_m[is].z_;
 
-      for (int part = 0; part < n_particles; ++part) {
+      for (size_t part = 0; part < n_particles; ++part) {
 
         const mini_float gamma_inv =
           1 / sqrt(1 + patch.particles_m[is].mx_h(part) * patch.particles_m[is].mx_h(part) +
@@ -655,7 +655,7 @@ auto project(Params &params, ElectroMagn &em, Patch &patch) -> void {
 
   for (int is = 0; is < patch.n_species_m; is++) {
 
-    const int n_particles                = patch.particles_m[is].size();
+    const size_t n_particles                = patch.particles_m[is].size();
     const mini_float inv_cell_volume_x_q = params.inv_cell_volume * patch.particles_m[is].charge_m;
     // double m       = particles_m[is].mass_m;
 
@@ -669,7 +669,7 @@ auto project(Params &params, ElectroMagn &em, Patch &patch) -> void {
     Vector<mini_float> &my = patch.particles_m[is].my_;
     Vector<mini_float> &mz = patch.particles_m[is].mz_;
 
-    for (int part = 0; part < n_particles; ++part) {
+    for (size_t part = 0; part < n_particles; ++part) {
 
       // Delete if already compute by Pusher
       // mini_float usq = (moment[0]*moment[0] + moment[1]*moment[1] + moment[2]*moment[2]);
@@ -1279,7 +1279,7 @@ void identify_particles_to_move(Params &params, Patch &patch, Backend &backend) 
   for (int is = 0; is < patch.n_species_m; is++) {
 
     // Number of particles for this species is
-    unsigned int n_particles = patch.particles_m[is].size();
+    size_t n_particles = patch.particles_m[is].size();
 
     if (n_particles == 0)
       continue;
@@ -1288,7 +1288,7 @@ void identify_particles_to_move(Params &params, Patch &patch, Backend &backend) 
     Vector<int> n_particle_to_move(26, 0, backend);
 
     // index for particle copy in the buffers
-    Vector<unsigned int> ip_to_move(26, 0, backend);
+    Vector<size_t> ip_to_move(26, 0, backend);
 
     // Mask for buffer direction
     // std::Vector<int> masks(n_particles, -1, backend);
@@ -1307,7 +1307,7 @@ void identify_particles_to_move(Params &params, Patch &patch, Backend &backend) 
     Vector<int> &masks_accessor = masks;
 
     // 1 - Compute number of particles to move per buffer and tag them
-    for (int ip = 0; ip < n_particles; ip++) {
+    for (size_t ip = 0; ip < n_particles; ip++) {
 
       mini_float shift[3];
 
@@ -1375,7 +1375,7 @@ void identify_particles_to_move(Params &params, Patch &patch, Backend &backend) 
 
     // 2 - Realloc buffers memory
 
-    unsigned int total_particles_to_remove = 0;
+    size_t total_particles_to_remove = 0;
 
     for (int ib = 0; ib < 26; ib++) {
       patch.particles_to_move_m[is][ib].resize(n_particle_to_move.h(ib), minipic::device);
@@ -1390,7 +1390,7 @@ void identify_particles_to_move(Params &params, Patch &patch, Backend &backend) 
 
     if (total_particles_to_remove > 0) {
 
-      for (int ip = 0; ip < n_particles; ++ip) {
+      for (size_t ip = 0; ip < n_particles; ++ip) {
 
         if (masks.h(ip) >= 0) {
 
@@ -1407,7 +1407,7 @@ void identify_particles_to_move(Params &params, Patch &patch, Backend &backend) 
           //   }
           // }
 
-          const int i = ip_to_move.h(ib);
+          const size_t i = ip_to_move.h(ib);
 
           patch.particles_to_move_m[is][ib].x_h(i) = patch.particles_m[is].x_h(ip);
           patch.particles_to_move_m[is][ib].y_h(i) = patch.particles_m[is].y_h(ip);
@@ -1436,10 +1436,10 @@ void identify_particles_to_move(Params &params, Patch &patch, Backend &backend) 
     if (total_particles_to_remove > 0) {
 
       // front particle index
-      int ip = 0;
+      long ip = 0;
 
       // last particle index
-      int last_ip = n_particles - 1;
+      long last_ip = n_particles - 1;
 
       while (ip <= last_ip) {
 
@@ -1500,10 +1500,10 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
 
   for (int is = 0; is < patch.n_species_m; is++) {
 
-    const int number_of_particles = patch.particles_m[is].size();
+    const size_t number_of_particles = patch.particles_m[is].size();
 
     // total number of particles coming from other patches
-    int coming_number_of_particles = 0;
+    size_t coming_number_of_particles = 0;
 
     // Compute the total number of particles that will come from other patches
     for (int i = -1; i < 2; i++) {
@@ -1532,8 +1532,8 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
             vec_patch[idx_neighbor].particles_to_move_m[is][idx_buffer].size();
 
         } // end for each neighbors
-      }   // end for each neighbors
-    }     // end for each neighbors
+      } // end for each neighbors
+    } // end for each neighbors
 
     if (coming_number_of_particles > 0) {
       patch.particles_m[is].resize(number_of_particles + coming_number_of_particles,
@@ -1541,7 +1541,7 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
     }
 
     // Index where to start to copy the incoming particles in Particles
-    int ip_buffer_start = number_of_particles;
+    size_t ip_buffer_start = number_of_particles;
 
     // Collect new particles from neighbours
     for (int i = -1; i < 2; i++) {
@@ -1565,7 +1565,7 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
             idx_buffer--;
           }
 
-          const int buffer_size =
+          const size_t buffer_size =
             vec_patch[idx_neighbor].particles_to_move_m[is][idx_buffer].size();
 
           if (buffer_size > 0) {
@@ -1573,7 +1573,7 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
 #if defined(__MINIPIC_SIMD__)
 #pragma omp simd
 #endif
-            for (int ip = 0; ip < buffer_size; ++ip) {
+            for (size_t ip = 0; ip < buffer_size; ++ip) {
 
               patch.particles_m[is].x_.h(ip_buffer_start + ip) =
                 vec_patch[idx_neighbor].particles_to_move_m[is][idx_buffer].x_.h(ip);
@@ -1610,13 +1610,8 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
           } // if buffer size > 0
 
         } // end for each neighbors
-      }   // end for each neighbors
-    }     // end for each neighbors
-
-    // std::cerr << "end exchange" << std::endl;
-
-    // std::cerr << "patch: " << idx_patch_topology_m << " sp: " << is << " - after exchange: " <<
-    // particles_m[is].get_kinetic_energy() << " size: "  << particles_m[is].size() << std::endl;
+      } // end for each neighbors
+    } // end for each neighbors
 
 #if defined(__MINIPIC_DEBUG__)
     patch.particles_m[is].sync(minipic::device, minipic::host);
@@ -1667,7 +1662,7 @@ auto reduc_current(Patch &patch) -> void {
       }
 
     } // end check if particles
-  }   // end for species
+  } // end for species
 }
 
 // ____________________________________________________________________________

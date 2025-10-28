@@ -1,3 +1,4 @@
+
 /* _____________________________________________________________________ */
 //! \file SubDomain.hpp
 
@@ -33,11 +34,15 @@ public:
   // ______________________________________________________
   void allocate(Params &params, Backend &backend) {
 
+    DEBUG("Start SubDomain initialization");
+
     std::cout << params.seperator(50) << std::endl << std::endl;
     std::cout << " Initialization" << std::endl << std::endl;
 
     // Allocate global fields
+    DEBUG("Start field allocation");
     em_.allocate(params, backend);
+    DEBUG("End field allocation");
 
     const double memory_consumption =
       (em_.Ex_m.size() + em_.Ey_m.size() + em_.Ez_m.size() + em_.Bx_m.size() + em_.By_m.size() +
@@ -48,6 +53,7 @@ public:
     std::cout << " Field grids: " << memory_consumption << " Mb" << std::endl << std::endl;
 
     // Allocate and initialize particles for each patch on host
+    DEBUG("Start patch allocation");
     patches_.resize(params.N_patches);
     for (int i = 0; i < params.nx_patch; i++) {
       for (int j = 0; j < params.ny_patch; j++) {
@@ -61,8 +67,10 @@ public:
         }
       }
     }
+    DEBUG("End patch allocation");
 
     // Momentum correction (to respect the leap frog scheme)
+    DEBUG("Start momentum correction");
     if (params.momentum_correction) {
 
       std::cout << " > Apply momentum correction "
@@ -74,11 +82,13 @@ public:
         operators::push_momentum(patches_[ip], -0.5 * params.dt);
       }
     }
+    DEBUG("End momentum correction");
 
     // For each species, print :
     // - total number of particles
+    DEBUG("Start particles information");
     for (auto is = 0; is < params.species_names_.size(); ++is) {
-      size_t total_number_of_particles = 0;
+      unsigned int total_number_of_particles = 0;
       mini_float total_particle_energy       = 0;
       for (auto idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
         total_number_of_particles += patches_[idx_patch].particles_m[is].size();
@@ -93,9 +103,10 @@ public:
       std::cout << " - Total kinetic energy: " << total_particle_energy << std::endl;
       std::cout << " - Memory footprint: " << memory_consumption << " Mb" << std::endl;
     }
+    DEBUG("End particles information");
 
     // Checksum for field
-
+    DEBUG("Start checksum for fields");
     auto sum_Ex_on_host = em_.Ex_m.sum(1, minipic::host);
     auto sum_Ey_on_host = em_.Ey_m.sum(1, minipic::host);
     auto sum_Ez_on_host = em_.Ez_m.sum(1, minipic::host);
@@ -138,9 +149,10 @@ public:
     std::cout << " Bz     | " << std::setw(10) << std::scientific << std::setprecision(p)
               << sum_Bz_on_host << " | " << std::setw(10) << std::scientific << std::setprecision(p)
               << sum_Bz_on_device << " | " << std::endl;
+    DEBUG("End checksum for fields");
 
     // Checksum for particles
-
+    DEBUG("Start checksum for particles");
     double sum_device[13] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     double sum_host[13]   = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     static const std::string vector_name[13] =
@@ -177,6 +189,7 @@ public:
         sum_device[12] += patches_[ip].particles_m[is].Bz_.sum(1, minipic::device);
       }
     }
+    DEBUG("End checksum for particles");
 
     std::cout << std::endl;
     std::cout << " -------------------------------- |" << std::endl;
@@ -206,14 +219,12 @@ public:
 
       DEBUG("start reset current");
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single // single nowait
-#endif
       {
         timers.start(timers.reset_current);
-        profiler.start(RESET);
+        profiler.start(PROJECT);
 
-        em_.reset_currents(minipic::host);
+        em_.reset_currents(minipic::device);
+        // em_.reset_currents(minipic::host);
 
         timers.stop(timers.reset_current);
         profiler.stop();
@@ -221,46 +232,42 @@ public:
       DEBUG("stop reset current");
     }
 
-#ifdef __MINIPIC_OMP__
-#pragma omp for schedule(runtime)
-#endif
-
-    for (size_t idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
+    for (int idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
 
       // Interpolate from global field to particles in patch
       timers.start(timers.interpolate, idx_patch);
-      profiler.start(EVOLVE_PATCH);
+      profiler.start(INTERPOLATE);
 
       DEBUG("start interpolate");
       operators::interpolate(em_, patches_[idx_patch]);
 
       DEBUG("stop interpolate");
       timers.stop(timers.interpolate, idx_patch);
-      // profiler.stop();
+      profiler.stop();
 
       // Push all particles in patch
       timers.start(timers.push, idx_patch);
-      // profiler.start(PUSH);
+      profiler.start(PUSH);
 
       operators::push(patches_[idx_patch], params.dt);
 
       timers.stop(timers.push, idx_patch);
-      // profiler.stop();
+      profiler.stop();
 
       // Do boundary conditions on global domain
       timers.start(timers.pushBC, idx_patch);
-      // profiler.start(PUSHBC);
+      profiler.start(PUSHBC);
 
       operators::pushBC(params, patches_[idx_patch]);
 
       timers.stop(timers.pushBC, idx_patch);
-      // profiler.stop();
+      profiler.stop();
 
       // Projection in local field
       if (params.current_projection) {
 
         timers.start(timers.projection, idx_patch);
-        // profiler.start(PROJECT);
+        profiler.start(PROJECT);
 
         // #if defined(__MINIPIC_KOKKOS__)
 
@@ -278,14 +285,14 @@ public:
         // #endif
 
         timers.stop(timers.projection, idx_patch);
-        // profiler.stop();
+        profiler.stop();
       }
 
       // __________________________________________________________________
       // Identify and copy in buffers particles which leave the patch
 
       timers.start(timers.id_parts_to_move, idx_patch);
-      // profiler.start(EXCHANGE);
+      profiler.start(EXCHANGE);
 
       DEBUG("Patch " << idx_patch << ": start identify particles to move");
 
@@ -304,12 +311,7 @@ public:
 
     if (patches_.size() > 1) {
 
-#ifdef __MINIPIC_OMP__
-#pragma omp for schedule(runtime)
-#endif
-
-      for (size_t idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
-        profiler.start(EXCHANGE);
+      for (int idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
         timers.start(timers.exchange, idx_patch);
 
         DEBUG("Patch " << idx_patch << ": exchange");
@@ -319,7 +321,6 @@ public:
         DEBUG("Patch " << idx_patch << ": end exchange");
 
         timers.stop(timers.exchange, idx_patch);
-        profiler.stop();
       }
     }
 
@@ -328,13 +329,10 @@ public:
 
     if (params.current_projection || params.n_particles > 0) {
 
-#ifdef __MINIPIC_OMP__
-#pragma omp for schedule(runtime)
-#endif
-      for (size_t idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
+      for (int idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
 
         timers.start(timers.current_local_reduc, idx_patch);
-        profiler.start(CURRENT_GLOBAL_BORDERS);
+        profiler.start(PROJECT);
 
         // Projection directly in the global grid
         // subdomain.patches_[idx_patch].project(param, em_);
@@ -347,17 +345,19 @@ public:
 
         timers.stop(timers.current_local_reduc, idx_patch);
         profiler.stop();
+
+        // for (auto is = 0; is < params.species_names_.size(); ++is) {
+        //   patches_[idx_patch].vec_Jx_m[is].sync(minipic::device, minipic::host);
+        //   patches_[idx_patch].vec_Jy_m[is].sync(minipic::device, minipic::host);
+        //   patches_[idx_patch].vec_Jz_m[is].sync(minipic::device, minipic::host);
+        // }
       }
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single // single nowait
-#endif
       {
-
         timers.start(timers.current_global_reduc);
 
-        profiler.start(CURRENT_GLOBAL_BORDERS);
-        for (size_t idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
+        profiler.start(PROJECT);
+        for (int idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
 
           DEBUG("start local 2 global")
           // Copy all local fields in the global fields
@@ -365,8 +365,11 @@ public:
           DEBUG("end local 2 global")
         }
         profiler.stop();
-
         timers.stop(timers.current_global_reduc);
+
+        // em_.Jx_m.sync(minipic::device, minipic::host);
+        // em_.Jy_m.sync(minipic::device, minipic::host);
+        // em_.Jz_m.sync(minipic::device, minipic::host);
 
         timers.start(timers.currentBC);
         profiler.start(CURRENTBC);
@@ -383,79 +386,53 @@ public:
     } // end if current projection
 
     // __________________________________________________________________
-    // Imbalance operator in particles
-
-    if (!params.imbalance_function_.empty()) {
-
-#ifdef __MINIPIC_OMP__
-#pragma omp for schedule(runtime)
-#endif
-      for (size_t idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
-
-        timers.start(timers.imbalance, idx_patch);
-        operators::imbalance_operator(params,
-                                      patches_[idx_patch],
-                                      it,
-                                      params.imbalance_function_[0]);
-        timers.stop(timers.imbalance, idx_patch);
-
-      } // end iterate
-    } // end imbalance
-
-    // __________________________________________________________________
     // Maxwell solver
 
     if (params.maxwell_solver) {
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single // single nowait
-#endif
-      { timers.start(timers.maxwell_solver); }
+      timers.start(timers.maxwell_solver);
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single // single nowait
-#endif
-      {
-
-        // profiler.start(MAXWELL);
-        // Generate a laser field with an antenna
-        for (size_t iantenna = 0; iantenna < params.antenna_profiles_.size(); iantenna++) {
-          operators::antenna(params,
-                             em_,
-                             params.antenna_profiles_[iantenna],
-                             params.antenna_positions_[iantenna],
-                             it * params.dt);
-        }
-        // profiler.stop();
+      profiler.start(MAXWELL);
+      // Generate a laser field with an antenna
+      for (auto iantenna = 0; iantenna < params.antenna_profiles_.size(); iantenna++) {
+        operators::antenna(params,
+                           em_,
+                           params.antenna_profiles_[iantenna],
+                           params.antenna_positions_[iantenna],
+                           it * params.dt);
       }
+      profiler.stop();
 
       // Solve the Maxwell equation
       operators::solve_maxwell(params, em_, profiler);
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single // single nowait
-#endif
-      { timers.stop(timers.maxwell_solver); }
+      // em_.Ex_m.sync(minipic::device, minipic::host);
+      // em_.Ey_m.sync(minipic::device, minipic::host);
+      // em_.Ez_m.sync(minipic::device, minipic::host);
+
+      // em_.Bx_m.sync(minipic::device, minipic::host);
+      // em_.By_m.sync(minipic::device, minipic::host);
+      // em_.Bz_m.sync(minipic::device, minipic::host);
+
+      timers.stop(timers.maxwell_solver);
 
       // __________________________________________________________________
       // Maxwell Boundary conditions
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single // single nowait
-#endif
-      {
-        profiler.start(MAXWELL);
-        timers.start(timers.maxwellBC);
+      profiler.start(MAXWELL);
+      timers.start(timers.maxwellBC);
 
-        DEBUG("start solve BC")
+      DEBUG("start solve BC")
 
-        // Boundary conditions on EM fields
-        operators::solveBC(params, em_);
+      // Boundary conditions on EM fields
+      operators::solveBC(params, em_);
 
-        DEBUG("end solve BC")
-        timers.stop(timers.maxwellBC);
-        profiler.stop();
-      }
+      DEBUG("end solve BC")
+      timers.stop(timers.maxwellBC);
+      profiler.stop();
+
+      // Copy field from host to device
+      // em_.sync(minipic::host, minipic::device);
 
     } // end test params.maxwell_solver
   } // end iterate
@@ -467,25 +444,60 @@ public:
   //! \param[in] Profiler& profiler for detailed time measurement
   //! \param[in] int it iteration number
   // ________________________________________________________________
-  void diagnostics(Params &params,
-                   Timers &timers,
-                   Profiler &profiler,
-                   [[maybe_unused]] Backend &backend,
-                   int it) {
+  void diagnostics(Params &params, Timers &timers, Profiler &profiler, Backend &backend, int it) {
 
     if (params.no_diagnostics_at_init and it == 0) {
       return;
     }
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single
-#endif
-    { timers.start(timers.diags_binning); }
+    profiler.start(DIAGNOSTICS);
+    timers.start(timers.diags_sync);
+
+    // __________________________________________________________________
+    // Determine species to copy from device to host
+
+    bool need_species[params.get_species_number()];
+    for (auto is = 0; is < params.get_species_number(); ++is) {
+      need_species[is] = false;
+    }
+
+    for (auto particle_binning : params.particle_binning_properties_) {
+      if (!(it % particle_binning.period_)) {
+        for (auto is : particle_binning.species_indexes_) {
+          // if number of particles > 0
+          need_species[is] = true;
+        }
+      }
+    }
+
+    if ((params.particle_cloud_period < params.n_it) &&
+        (!(it % params.particle_cloud_period) or (it == 0))) {
+
+      for (auto is = 0; is < params.get_species_number(); ++is) {
+        need_species[is] = true;
+      }
+    }
+
+    for (auto is = 0; is < params.get_species_number(); ++is) {
+      if (need_species[is]) {
+        for (auto ipatch = 0; ipatch < patches_.size(); ++ipatch) {
+          patches_[ipatch].particles_m[is].sync(minipic::device, minipic::host);
+        }
+      }
+    }
+
+    if (!(it % params.field_diagnostics_period)) {
+      em_.sync(minipic::device, minipic::host);
+    }
+
+    timers.stop(timers.diags_sync);
+
+    // __________________________________________________________________
+    // Start diagnostics
+
+    timers.start(timers.diags_binning);
 
     // Particle binning
-#ifdef __MINIPIC_OMP__
-#pragma omp for schedule(runtime) // collapse(2)
-#endif
     for (auto particle_binning : params.particle_binning_properties_) {
 
       // for each species index of this diagnostic
@@ -493,7 +505,7 @@ public:
 
         if (!(it % particle_binning.period_)) {
 
-          profiler.start(DIAGS);
+          profiler.start(DIAGNOSTICS);
 
           // Call the particle binning function using the properties in particle_binning
           Diags::particle_binning(particle_binning.name_,
@@ -514,91 +526,53 @@ public:
       }
     } // end loop on particle_binning_properties_
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single // single nowait
-#endif
     timers.stop(timers.diags_binning);
 
     // Particle Clouds
     if ((params.particle_cloud_period < params.n_it) &&
         (!(it % params.particle_cloud_period) or (it == 0))) {
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single // single nowait
-#endif
-      { timers.start(timers.diags_cloud); }
+      timers.start(timers.diags_cloud);
 
-#ifdef __MINIPIC_OMP__
-#pragma omp for schedule(runtime)
-#endif
-      for (size_t is = 0; is < params.get_species_number(); ++is) {
+      for (auto is = 0; is < params.get_species_number(); ++is) {
 
-        profiler.start(DIAGS);
+        profiler.start(DIAGNOSTICS);
 
         Diags::particle_cloud("cloud", params, patches_, is, it, params.particle_cloud_format);
 
         profiler.stop();
       }
 
-#ifdef __MINIPIC_OMP__
-#pragma omp single // single nowait
-#endif
       timers.stop(timers.diags_cloud);
     }
 
     // Field diagnostics
     if (!(it % params.field_diagnostics_period)) {
-#ifdef __MINIPIC_OMP__
-#pragma omp single
-#endif
-      {
 
-        timers.start(timers.diags_field);
+      timers.start(timers.diags_field);
 
-        profiler.start(DIAGS);
+      profiler.start(DIAGNOSTICS);
 
-        Diags::fields(params, em_, it, params.field_diagnostics_format);
+      Diags::fields(params, em_, it, params.field_diagnostics_format);
 
-        profiler.stop();
+      profiler.stop();
 
-        timers.stop(timers.diags_field);
-      }
+      timers.stop(timers.diags_field);
     }
 
     // Scalars diagnostics
     if (!(it % params.scalar_diagnostics_period)) {
-#ifdef __MINIPIC_OMP__
-#pragma omp single
-#endif
-      {
-        timers.start(timers.diags_scalar);
-        for (size_t is = 0; is < params.get_species_number(); ++is) {
-          profiler.start(DIAGS);
+      timers.start(timers.diags_scalar);
+      profiler.start(DIAGNOSTICS);
 
-          Diags::scalars(params, patches_, is, it);
-
-          profiler.stop();
-        }
-        timers.stop(timers.diags_scalar);
+      for (auto is = 0; is < params.get_species_number(); ++is) {
+        Diags::scalars(params, patches_, is, it);
       }
-    }
 
-    if (!(it % params.scalar_diagnostics_period)) {
-#ifdef __MINIPIC_OMP__
-#pragma omp single
-#endif
-      {
+      Diags::scalars(params, em_, it);
 
-        timers.start(timers.diags_scalar);
-
-        profiler.start(DIAGS);
-
-        Diags::scalars(params, em_, it);
-
-        profiler.stop();
-
-        timers.stop(timers.diags_scalar);
-      }
+      profiler.stop();
+      timers.stop(timers.diags_scalar);
     }
 
   } // end diagnostics
@@ -607,9 +581,9 @@ public:
   //
   //! \brief get the total number of particles
   // __________________________________________________________________
-  size_t get_total_number_of_particles() {
-    size_t total_number_of_particles = 0;
-    for (size_t idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
+  unsigned int get_total_number_of_particles() {
+    unsigned int total_number_of_particles = 0;
+    for (auto idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
       total_number_of_particles += patches_[idx_patch].get_total_number_of_particles();
     }
     return total_number_of_particles;

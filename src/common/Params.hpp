@@ -20,6 +20,12 @@
 #include <math.h>
 #include <vector>
 
+// #ifdef __MINIPIC_KOKKOS__
+// #include "Particles_Kokkos.hpp"
+// #else
+// #include "Particles.hpp"
+// #endif
+
 // ___________________________________________________________________
 //
 //! structure to store the properties of a particle binning diagnostics
@@ -55,7 +61,7 @@ struct ParticleBinningProperties {
                             int period,
                             std::string format)
     : name_(name), projected_parameter_(projected_parameter), axis_(axis), n_cells_(n_cells),
-      min_(min), max_(max), species_indexes_(species_indexes), period_(period), format_(format){};
+      min_(min), max_(max), species_indexes_(species_indexes), period_(period), format_(format) {};
 };
 
 // ___________________________________________________________________
@@ -75,7 +81,7 @@ struct Particle {
 
   //! Constructor
   Particle(unsigned int is, double w, double x, double y, double z, double mx, double my, double mz)
-    : is_(is), w_(w), x_(x), y_(y), z_(z), mx_(mx), my_(my), mz_(mz){};
+    : is_(is), w_(w), x_(x), y_(y), z_(z), mx_(mx), my_(my), mz_(mz) {};
 };
 
 // ___________________________________________________________________
@@ -107,7 +113,7 @@ public:
 #endif
 
   //! Input computed
-  int N_patches;
+  unsigned int N_patches;
   int nx_cells, ny_cells, nz_cells;
   double Lx, Ly, Lz;
   double dx, dy, dz;
@@ -142,7 +148,7 @@ public:
   //! Time total, computed
   double simulation_time;
   //! Number of iteration, computed
-  int n_it;
+  unsigned int n_it;
   //! CFL
   double dt_cfl;
 
@@ -166,11 +172,11 @@ public:
   std::vector<std::string> position_initialization_level_;
 
   //! Number of particles in one patch for each species at init, computed
-  std::vector<int> n_particles_by_species_in_patch;
+  std::vector<size_t> n_particles_by_species_in_patch;
   //! Number of particles total for each species at init, computed
-  std::vector<int> n_particles_by_species;
+  std::vector<size_t> n_particles_by_species;
   //! Number of particles at init, computed
-  int n_particles;
+  size_t n_particles;
 
   //! list of particles to add at init
   std::vector<Particle> particles_to_add_;
@@ -267,27 +273,29 @@ public:
   // _______________________________________________________________
   void compute() {
 
+    DEBUG("Compute global parameters");
+
     N_patches = nx_patch * ny_patch * nz_patch;
 
     nx_cells = nx_cells_by_patch * nx_patch;
     ny_cells = ny_cells_by_patch * ny_patch;
     nz_cells = nz_cells_by_patch * nz_patch;
 
-    Lx              = sup_x - inf_x;
-    Ly              = sup_y - inf_y;
-    Lz              = sup_z - inf_z;
+    Lx = sup_x - inf_x;
+    Ly = sup_y - inf_y;
+    Lz = sup_z - inf_z;
 
-    dx              = Lx / nx_cells;
-    dy              = Ly / ny_cells;
-    dz              = Lz / nz_cells;
+    dx = Lx / nx_cells;
+    dy = Ly / ny_cells;
+    dz = Lz / nz_cells;
 
-    inv_dx          = 1. / dx;
-    inv_dy          = 1. / dy;
-    inv_dz          = 1. / dz;
+    inv_dx = 1. / dx;
+    inv_dy = 1. / dy;
+    inv_dz = 1. / dz;
 
-    dx_sq           = dx * dx;
-    dy_sq           = dy * dy;
-    dz_sq           = dz * dz;
+    dx_sq = dx * dx;
+    dy_sq = dy * dy;
+    dz_sq = dz * dz;
 
     cell_volume     = dx * dy * dz;
     inv_cell_volume = inv_dx * inv_dy * inv_dz;
@@ -323,7 +331,8 @@ public:
     dt_cfl = std::sqrt(1 / (1 / dx_sq + 1 / dy_sq + 1 / dz_sq));
 
     if (dt > 1 || dt <= 0) {
-      ERROR("ERROR in setup: dt (fraction of the CFL) must be between 0 and 1 to comply with the CFL condition")
+      ERROR("ERROR in setup: dt (fraction of the CFL) must be between 0 and 1 to comply with the "
+            "CFL condition")
       std::raise(SIGABRT);
     }
 
@@ -331,12 +340,13 @@ public:
     n_it = static_cast<int>(std::round(simulation_time / dt));
 
     // Convert dt into a fraction of the CFL
-    dt = dt * dt_cfl;
+    dt              = dt * dt_cfl;
     simulation_time = n_it * dt;
 
     // const double cfl = (dt * dt / (1 / dx_sq + 1 / dy_sq + 1 / dz_sq));
     // if (cfl > 1) {
-    //   std::cerr << " CFL condition is not respected, you must have : 1/dt**2 <= 1/dx**2 + 1/dy**2 "
+    //   std::cerr << " CFL condition is not respected, you must have : 1/dt**2 <= 1/dx**2 + 1/dy**2
+    //   "
     //                "+ 1/dz**2 "
     //             << std::endl;
     //   std::raise(SIGABRT);
@@ -346,7 +356,7 @@ public:
     n_particles = 0;
     n_particles_by_species_in_patch.resize(species_names_.size());
     n_particles_by_species.resize(species_names_.size());
-    for (int is = 0; is < species_names_.size(); is++) {
+    for (size_t is = 0; is < species_names_.size(); is++) {
       n_particles_by_species_in_patch[is] =
         nx_cells_by_patch * ny_cells_by_patch * nz_cells_by_patch * ppc_[is];
       n_particles_by_species[is] =
@@ -355,7 +365,7 @@ public:
     }
 
     // Check species initialization
-    for (auto is = 0; is < species_names_.size(); ++is) {
+    for (size_t is = 0; is < species_names_.size(); ++is) {
 
       bool passed = false;
 
@@ -366,7 +376,7 @@ public:
       } else {
 
         // We check that the position init is one of the previous species
-        for (auto is2 = 0; is2 < is; ++is2) {
+        for (size_t is2 = 0; is2 < is; ++is2) {
           if (position_initialization_method_[is] == species_names_[is2]) {
             passed = true;
           }
@@ -375,17 +385,17 @@ public:
       // if not passed, return an error
       if (!passed) {
         ERROR(" Position initialization " << position_initialization_method_[is]
-                  << " is not supported");
+                                          << " is not supported");
         std::raise(SIGABRT);
       }
     }
 
     // Check species init level (should be "cell" or "patch")
-    for (auto is = 0; is < species_names_.size(); ++is) {
+    for (size_t is = 0; is < species_names_.size(); ++is) {
       if (position_initialization_level_[is] != "cell" &&
           position_initialization_level_[is] != "patch") {
         ERROR(" Position initialization level " << position_initialization_level_[is]
-                  << " is not supported");
+                                                << " is not supported");
         std::raise(SIGABRT);
       }
     }
@@ -426,6 +436,9 @@ public:
 #else
     number_of_threads = 1;
 #endif
+
+    DEBUG("End of compute global parameters");
+
   }
 
   // _________________________________________________________________________________________________
@@ -547,20 +560,21 @@ public:
   //! \brief print the help for command line options
   // _____________________________________________________
   void help() const {
-    std::cout << " \n"
-              << " Help for command line options \n"
-              << " Note: command line options overwrite program parameters.\n\n"
-              << " -h   (--help): print the help page for command line options\n"
-              << " -it  (--iterations) int: change the number of iterations\n"
-              << " -dmin (--domain_min) double double double: change the domain minimum boundaries\n"
-              << " -dmax (--domain_max) double double double: change the domain maximum boundaries\n"
-              << " -p   (--patches) int int int: number of patches per direction\n"
-              << " -cpp (--cells_per_patch) int int int: number of cells per patch per direction\n"
-              << " -rs  (--random_seed) int: seed for random generator\n"
-              << " -pp  (--print_period) int: iteration period for terminal printing\n"
-              << " -stp (--save_timers_period) int: iteration period for timers saving\n"
-              << " -sts (--save_timers_start) int: iteration start for timers saving\n"
-              << std::endl;
+    std::cout
+      << " \n"
+      << " Help for command line options \n"
+      << " Note: command line options overwrite program parameters.\n\n"
+      << " -h   (--help): print the help page for command line options\n"
+      << " -it  (--iterations) int: change the number of iterations\n"
+      << " -dmin (--domain_min) double double double: change the domain minimum boundaries\n"
+      << " -dmax (--domain_max) double double double: change the domain maximum boundaries\n"
+      << " -p   (--patches) int int int: number of patches per direction\n"
+      << " -cpp (--cells_per_patch) int int int: number of cells per patch per direction\n"
+      << " -rs  (--random_seed) int: seed for random generator\n"
+      << " -pp  (--print_period) int: iteration period for terminal printing\n"
+      << " -stp (--save_timers_period) int: iteration period for timers saving\n"
+      << " -sts (--save_timers_start) int: iteration start for timers saving\n"
+      << std::endl;
     std::_Exit(EXIT_SUCCESS);
   }
 

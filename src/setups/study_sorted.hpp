@@ -33,7 +33,7 @@ void setup(Params &params) {
   params.nz_cells_by_patch = 64;
 
   // Time
-  params.dt = 0.9 ; // Fraction of the CFL condition
+  params.dt = 0.9; // Fraction of the CFL condition
 
   params.simulation_time = 100 * params.dt;
 

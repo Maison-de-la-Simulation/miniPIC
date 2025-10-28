@@ -37,18 +37,22 @@ void setup(Params &params) {
 
   // Time
 
-  const double dx = (params.sup_x - params.inf_x) / (params.nx_cells_by_patch * params.nx_patch);
-  const double dy = (params.sup_y - params.inf_y) / (params.ny_cells_by_patch * params.ny_patch);
-  const double dz = (params.sup_z - params.inf_z) / (params.nz_cells_by_patch * params.nz_patch);
+  [[maybe_unused]] const double dx =
+    (params.sup_x - params.inf_x) / (params.nx_cells_by_patch * params.nx_patch);
+  [[maybe_unused]] const double dy =
+    (params.sup_y - params.inf_y) / (params.ny_cells_by_patch * params.ny_patch);
+  [[maybe_unused]] const double dz =
+    (params.sup_z - params.inf_z) / (params.nz_cells_by_patch * params.nz_patch);
 
-  params.dt = 0.9 ; // Fraction of the CFL condition
+  params.dt = 0.9; // Fraction of the CFL condition
 
   params.simulation_time = 100 * params.dt;
 
   // Species
 
   // custom density profile
-  auto profile = [](double x, double y, double z) -> double {
+  auto profile =
+    []([[maybe_unused]] double x, [[maybe_unused]] double y, [[maybe_unused]] double z) -> double {
     // if ((x > 0.2) && (x < 0.8)) {
     return 1e-5;
     // } else {

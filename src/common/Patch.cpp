@@ -119,7 +119,7 @@ void Patch::allocate(Params &param, Backend &backend, const int i, const int j, 
   }
 
   for (int is = 0; is < n_species_m; is++) {
-    int n_particles = param.n_particles_by_species_in_patch[is] + param.particles_to_add_.size();
+    size_t n_particles = param.n_particles_by_species_in_patch[is] + param.particles_to_add_.size();
 
     // Alloc memory to store current particles in patch, and init species attributes
     particles_m[is].allocate(param.charge_[is],
@@ -146,11 +146,17 @@ void Patch::allocate(Params &param, Backend &backend, const int i, const int j, 
       particles_to_move_m[is][ibuffer].with_electromagnetic_fields_ = false;
     }
 
+#if defined(__NVIDIA_PROFILER__)
+    nvtxRangePush("Allocate_localfield_per_specie");
+#endif
     // Alloc local fields, one for each species
     // Must have 2 ghost cells in the primal direction for the projection
     vec_Jx_m[is].allocate(nx_d_m, ny_p_m + 2, nz_p_m + 2, backend, 0.0, 1, 0, 0, "Jx");
     vec_Jy_m[is].allocate(nx_p_m + 2, ny_d_m, nz_p_m + 2, backend, 0.0, 0, 1, 0, "Jy");
     vec_Jz_m[is].allocate(nx_p_m + 2, ny_p_m + 2, nz_d_m, backend, 0.0, 0, 0, 1, "Jz");
+#if defined(__NVIDIA_PROFILER__)
+    nvtxRangePop();
+#endif
   }
 
   // Alloc local fields
@@ -181,21 +187,21 @@ void Patch::initialize_particles(Params &param) {
 
   // buffer to store the number of particles per cells per species
   // Needed for proper init with duplication
-  std::vector<int> particles_per_cell_counter(n_species * total_cells);
+  std::vector<size_t> particles_per_cell_counter(n_species * total_cells);
 
   // Loop over all species
   for (int is = 0; is < n_species; ++is) {
 
-    int n_particles    = particles_m[is].size();
+    size_t n_particles    = particles_m[is].size();
     double temperature = param.temp_[is];
     const double mass  = param.mass_[is];
 
     // Compute weight
-    const int particle_per_cell = param.ppc_[is];
+    const size_t particle_per_cell = param.ppc_[is];
     const double weight_coef    = cell_volume / particle_per_cell;
 
     // global particle counter
-    unsigned int total_particles_counter = 0;
+    size_t total_particles_counter = 0;
 
     // compute the species index for position init
     int species_index_for_pos_init = 0;
@@ -244,10 +250,10 @@ void Patch::initialize_particles(Params &param) {
 
         // total number of particles
 
-        unsigned int total_particles = total_cells * particle_per_cell;
+        size_t total_particles = total_cells * particle_per_cell;
 
         // Loop on all particles
-        for (unsigned int ip = 0; ip < total_particles; ++ip) {
+        for (size_t ip = 0; ip < total_particles; ++ip) {
 
           // Random position
           double x = random.draw(inf_m[0], sup_m[0]);
@@ -274,9 +280,9 @@ void Patch::initialize_particles(Params &param) {
         // Init at particle positions of species species_index_for_pos_init
       } else {
 
-        unsigned int total_particles = particles_m[species_index_for_pos_init].size();
+        size_t total_particles = particles_m[species_index_for_pos_init].size();
 
-        for (unsigned int ip = 0; ip < total_particles; ++ip) {
+        for (size_t ip = 0; ip < total_particles; ++ip) {
 
           // Position
           particles_m[is].x_.h(ip) = particles_m[species_index_for_pos_init].x_.h(ip);
@@ -564,7 +570,7 @@ void Patch::initialize_particles(Params &param) {
     } // pos init level
 
     // Add single particles
-    for (int ip = 0; ip < param.particles_to_add_.size(); ++ip) {
+    for (size_t ip = 0; ip < param.particles_to_add_.size(); ++ip) {
       if (param.particles_to_add_[ip].is_ == is) {
 
         const double w = param.particles_to_add_[ip].w_;

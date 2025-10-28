@@ -23,9 +23,10 @@
 #endif
 
 // Load a setup
-// #include "study_thermal.hpp"
-#include "study_sorted.hpp"
-//#include "study_random.hpp"
+#include "study_thermal.hpp"
+// #include "study_sorted.hpp"
+// #include "study_random.hpp"
+// #include"default_gpu.hpp"
 
 //! Main function
 int main(int argc, char *argv[]) {
@@ -64,7 +65,7 @@ int main(int argc, char *argv[]) {
 
     // Timers initialization
     Timers timers(params);
-    //timers.start(timers.initialization);
+    timers.start(timers.initialization);
 
     // ______________________________________________________
     //
@@ -74,19 +75,20 @@ int main(int argc, char *argv[]) {
     // timers.start(timers. "initialization", 0);
 
     SubDomain subdomain;
-
+#if defined(__NVIDIA_PROFILER__)
+    nvtxRangePush("Allocate_sudomain");
+#endif
     // Creation of the domain
     subdomain.allocate(params, backend);
+#if defined(__NVIDIA_PROFILER__)
+    nvtxRangePop();
+#endif
 
     // Initialization of the diagnostics
     Diags::initialize(params);
 
     // Initialize a profiler
     Profiler profiler(params);
-
-    timers.stop(timers.initialization);
-    timers.save_initialization(params);
-    timers.start(timers.main_loop);
 
     // ______________________________________________________
     //
@@ -96,6 +98,9 @@ int main(int argc, char *argv[]) {
     timers.start(timers.diags);
     subdomain.diagnostics(params, timers, profiler, backend, 0);
     timers.stop(timers.diags);
+
+    timers.stop(timers.initialization);
+    timers.save_initialization();
 
     // ______________________________________________________
     //
@@ -116,7 +121,9 @@ int main(int argc, char *argv[]) {
     {
 #endif
 
-      for (int it = 1; it <= params.n_it; it++) {
+      DEBUG("Start of main loop");
+
+      for (unsigned int it = 1; it <= params.n_it; it++) {
 
         // _______________________________________________________
         // Main loop for all programming models except eventify
@@ -133,8 +140,14 @@ int main(int argc, char *argv[]) {
 #endif
           { timers.start(timers.pic_iteration); }
 
-          // Single PIC iteration
+// Single PIC iteration
+#if defined(__NVIDIA_PROFILER__)
+          nvtxRangePushA("ITERATION");
+#endif
           subdomain.iterate(params, timers, profiler, backend, it);
+#if defined(__NVIDIA_PROFILER__)
+          nvtxRangePop();
+#endif
 
 #if defined(__MINIPIC_OMP__)
 #pragma omp single
@@ -219,6 +232,7 @@ int main(int argc, char *argv[]) {
     // Print timers
 
     timers.print(params);
+
     timers.save(params, params.n_it + 1);
 
     // ____________________________________________________
@@ -236,5 +250,6 @@ int main(int argc, char *argv[]) {
 
   backend.finalize();
 
+  std::cerr << "> minipic finalized" << std::endl;
   return 0;
 }

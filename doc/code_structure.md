@@ -44,5 +44,19 @@ Each file provides either a set of functions, a namespace or a data container (c
 |------------------------|--------------------------------------------------------|
 | `__MINIPIC_SIMD__`     | Activate specific SIMD pragmas                         |
 | `__MINIPIC_OMP__`      | Activate specific OPENMP operators                     |
+| `__MINIPIC_THRUST__`   | Activate specific THRUST operators                     |
+| `__MINIPIC_THRUST_COMMON__` | Activate THRUST common backend (used for Fields and vectors to manage memory)                    |
+| `__MINIPIC_KOKKOS__`   | Activate specific KOKKOS operators                     |
 | `__MINIPIC_OMP_TASK__` | Activate specific OPENMP task operators                |
 | `__MINIPIC_EVENTIFY__` | Activate specific eventify operators                   |
+| `__MINIPIC_OMP_TARGET__` | Activate specific OPENMP target operators (use the )             |
+| `__MINIPIC_OPENACC__`   | Activate specific SHAMAN operators                     |
+| `__MINIPIC_STDPAR__`   | Activate specific STDPAR operators                     |
+
+
+## Known issues
+
+| Backend                | Issue                                                         |
+|------------------------|---------------------------------------------------------------|
+| OpenMP target          | Reduction on device does not work properly (gives 0)          |
+| OpenMP target          | Compilation issue on GH200                                    |

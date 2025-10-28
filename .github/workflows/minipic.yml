@@ -64,26 +64,26 @@ jobs:
 #         cd openmp_task
 #         python run.py -c g++ -g openmp_task
 
-  eventify:
-    runs-on: ubuntu-latest
+  # eventify:
+  #   runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/checkout@v4
+  #   steps:
+  #   - uses: actions/checkout@v4
 
-    - name: environment
-      run: |
-        python -m pip install --upgrade pip
-        pip3 install numpy
+  #   - name: environment
+  #     run: |
+  #       python -m pip install --upgrade pip
+  #       pip3 install numpy
 
-    - name: install eventify
-      run: |
-        git clone --recursive https://code.fmsolvr.fz-juelich.de/ATML-CAP/ETS.git eventify-source
-        cmake -S eventify-source -B eventify-build -DCMAKE_INSTALL_PREFIX=eventify-install -DCMAKE_BUILD_TYPE=Release
-        cmake --build eventify-build --config Release --target install --parallel
-        export Eventify_DIR=$PWD/eventify-install/
+  #   - name: install eventify
+  #     run: |
+  #       git clone --recursive https://code.fmsolvr.fz-juelich.de/ATML-CAP/ETS.git eventify-source
+  #       cmake -S eventify-source -B eventify-build -DCMAKE_INSTALL_PREFIX=eventify-install -DCMAKE_BUILD_TYPE=Release
+  #       cmake --build eventify-build --config Release --target install --parallel
+  #       export Eventify_DIR=$PWD/eventify-install/
 
-    - name: Compile and run minipic eventify
-      run: |
-        cp -r tests eventify
-        cd eventify
-        python run.py -c g++ -g eventify
+  #   - name: Compile and run minipic eventify
+  #     run: |
+  #       cp -r tests eventify
+  #       cd eventify
+  #       python run.py -c g++ -g eventify

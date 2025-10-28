@@ -35,7 +35,7 @@ void setup(Params &params) {
   // Time
 
   // dt in fraction of the CFL
-  params.dt = 0.9;
+  params.dt              = 0.9;
   params.simulation_time = 25 * params.dt;
 
   // Species

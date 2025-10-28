@@ -11,7 +11,7 @@
 #include "Vector.hpp"
 
 #include <cassert>
-
+#include <iomanip>
 
 int main(int argc, char *argv[]) {
 
@@ -43,6 +43,20 @@ int main(int argc, char *argv[]) {
         Vector <mini_float> v1(size, 1.0, backend);
         //Vector <int> v1(size, 1.0, backend);
 
+        std::cout << " > Test constructor on Host" << std::endl;
+        auto sum_host = v1.sum(1, minipic::host);
+        std::cout << " - sum on host: " << sum_host << " (expected: " << size*1.0 << ")" << std::endl;
+
+        std::cout << " > Test constructor on Device" << std::endl;
+        auto sum_device = v1.sum(1, minipic::device);
+        std::cout << " - sum on device: " << sum_device << " (expected: " << size*1.0 << ")" << std::endl;
+
+        assert(sum_host == size*1.0);
+        assert(sum_device == size*1.0);
+
+        std::cout << std::endl;
+
+
         // _________________________________________________________________________
         // Test size method
 
@@ -50,55 +64,46 @@ int main(int argc, char *argv[]) {
         std::cout << "   - size: " << v1.size() << " (expected: " << size << ")" << std::endl;
 
         assert(v1.size() == size);
+        std::cout<< std::endl;
 
         // _________________________________________________________________________
         // Test fill method
-
-        std::cout << " > Test fill method" << std::endl;
-
-        v1.fill(2.0);
-        //v1.fill(19);
-
-        auto sum_host = v1.sum(1, minipic::host);
-
+        std::cout << " > Test fill method on Host" << std::endl;
+        v1.fill(2.0, minipic::host);
+        sum_host = v1.sum(1, minipic::host);
         std::cout << " - sum on host: " << sum_host << " (expected: " << size*2.0 << ")" << std::endl;
 
-        auto sum_device = v1.sum(1, minipic::device);
-
-        std::cout << " - sum on device: " << sum_device << " (expected: " << size*2.0 << ")" << std::endl;
+        std::cout << " > Test fill method on Device" << std::endl;
+        v1.fill(2.0, minipic::device);
+        sum_device = v1.sum(1, minipic::device);
+        std::cout << " - sum on device: " << std::setprecision(15) << sum_device << " (expected: " << size*2.0 << ")" << std::endl;
 
         assert(sum_host == size*2.0);
         assert(sum_device == size*2.0);
+        //assert(std::abs(sum_device - size * 3.0) < 1e-5);
+
+        std::cout << std::endl;
+
 
         // _________________________________________________________________________
         // test kernel on host
 
-#if defined(__MINIPIC_KOKKOS_UNIFIED__)
-
-        auto view = v1.data_;
-
-        Kokkos::parallel_for("init_on_host",Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, size),KOKKOS_LAMBDA(const int& i) {
-            view(i) = i;
-        });
-
-#else
 
         for (auto i = 0; i < v1.size(); ++i) {
             v1[i] = i;
         }
 
-
-#endif
-
         // _________________________________________________________________________
         // test sum on host
-
-
         std::cout << " > Test sum on host" << std::endl;
-
         sum_host = v1.sum(1, minipic::host);
-
-        std::cout << " - sum on host: " << sum_host << std::endl;
+        std::cout << " - sum on host: " << sum_host << " (expected: \"4950\")" << std::endl;
+#if defined (__MINIPIC_CUDA__)
+        sum_device = v1.sum(1, minipic::device);
+        std::cout << " - sum on device: " << sum_device << " (expected: " << size*3.0 << ")" << std::endl;
+#else
+#endif        
+        std::cout << std::endl;
 
         // _________________________________________________________________________
         // test copy from host to device
@@ -107,58 +112,29 @@ int main(int argc, char *argv[]) {
 
         // copy to device
         v1.sync(minipic::host, minipic::device);
-
         sum_device = v1.sum(1, minipic::device);
-
-        std::cout << " - sum on device: " << sum_device << std::endl;
-
+        std::cout << " - sum on device: " << sum_device << " (expected: \"4950\")" << std::endl;
         assert(sum_host == sum_device);
+        std::cout << std::endl;
+
 
         // _________________________________________________________________________
         // Test kernel on device
 
         std::cout << " > Test kernel on device" << std::endl;
-        
+        #if (__MINIPIC_STDPAR__)
+        mini_float* v1_d= v1.get_raw_pointer(minipic::device);
+        std::for_each(std::execution::par_unseq, counting_iterator(0),
+                              counting_iterator(size),
+                  [=](int idx) {
+                      v1_d[idx] = idx * idx;      
+                  });
+        #else
         // init values on device
-#if defined(__MINIPIC_SYCL__)
-
-        mini_float *const __restrict__ device_data = v1.get_raw_pointer(minipic::device);
-
-        sycl::range<1> n_particles {static_cast<size_t>(size)};
-
-        // fill on device
-        sycl_queue_ptr->parallel_for(n_particles, [=](sycl::id<1> i) {
-        device_data[i] = i*i;
-        });
-
-        sycl_queue_ptr->wait();
-
-#elif defined(__MINIPIC_KOKKOS__)
-
-        device_vector_t device_view = v1.data_.d_view;
-
-        Kokkos::parallel_for(size, KOKKOS_LAMBDA(const int i) {
-            device_view(i) = i*i;
-        });
-        Kokkos::fence();
-
-#elif defined(__MINIPIC_KOKKOS_UNIFIED__)
-
-        device_vector_t device_view = v1.data_;
-
-        Kokkos::parallel_for(size, KOKKOS_LAMBDA(const int i) {
-            device_view(i) = i*i;
-        });
-        Kokkos::fence();
-
-#elif defined(__MINIPIC_STDPAR__)
-        mini_float *const ptrv1 = v1.get_raw_pointer(minipic::device);
-        std::for_each_n(std::execution::par_unseq, counting_iterator(0), size, [=](int i) {ptrv1[i]=i*i; });
-#else
         for (int i = 0; i < size; i++) {
             v1[i] = i*i;
         }
-#endif
+        #endif
 
         // Compute the reference on host
         mini_float reference_sum = 0.0;
@@ -169,31 +145,22 @@ int main(int argc, char *argv[]) {
 
         // _________________________________________________________________________
         // Test sum on device
-
         sum_device = v1.sum(1, minipic::device);
-
         auto error_device = std::abs((sum_device - reference_sum) / reference_sum);
-
         std::cout << " - sum on device: " << sum_device << " with error: " << error_device << std::endl;
-
+        std::cout << " - sum on host: " << sum_host << " (expected: \"4950\")" << std::endl;
+        std::cout << std::endl;
 
         // _________________________________________________________________________
         // Test copy from device to host
-
         std::cout << " > Test copy from device to host" << std::endl;
 
         v1.sync(minipic::device, minipic::host);
-
-        // _________________________________________________________________________
-        // Test sum on host
-
         sum_host = v1.sum(1, minipic::host);
-
-        auto error_host = std::abs((sum_host - reference_sum) / reference_sum);
-
-        std::cout << " - sum on host: " << sum_host << " with error: " << error_host << std::endl;
-
+        error_device = std::abs((sum_host - reference_sum) / reference_sum);
+        std::cout << " - sum on host: " << sum_host << " (expected: " << reference_sum << ")" << " with error: " << error_device << std::endl;
         assert(sum_host == sum_device);
+        std::cout << std::endl;
 
     }
 
@@ -202,3 +169,4 @@ int main(int argc, char *argv[]) {
     backend.finalize();
 
 }
+

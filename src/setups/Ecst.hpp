@@ -41,7 +41,7 @@ void setup(Params &params) {
   const double dy = (params.sup_y - params.inf_y) / (params.ny_cells_by_patch * params.ny_patch);
   const double dz = (params.sup_z - params.inf_z) / (params.nz_cells_by_patch * params.nz_patch);
 
-  params.dt = 0.9 ; // Fraction of the CFL
+  params.dt = 0.9; // Fraction of the CFL
 
   params.simulation_time = 50000 * params.dt;
 

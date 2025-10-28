@@ -15,7 +15,7 @@
 #include <vector>
 
 #include "Backend.hpp"
-#include "Diagnotics.hpp"
+#include "Diagnostics.hpp"
 #include "Operators.hpp"
 #include "Params.hpp"
 #include "Patch.hpp"
@@ -195,7 +195,6 @@ public:
                 << std::scientific << std::setprecision(p) << sum_host[i] << " | " << std::setw(10)
                 << std::scientific << std::setprecision(p) << sum_device[i] << " | " << std::endl;
     }
-
   }
 
   // ________________________________________________________________
@@ -203,9 +202,13 @@ public:
   //! \param[in] Params&  global parameters
   //! \param[in] Timers&  timers
   //! \param[in] Profiler& profiler for detailed time measurement
-  //! \param[in] int it iteration number
+  //! \param[in] unsigned int it iteration number
   // ________________________________________________________________
-  void diagnostics(Params &params, Timers &timers, Profiler &profiler, Backend &backend, int it) {
+  void diagnostics(Params &params,
+                   Timers &timers,
+                   Profiler &profiler,
+                   Backend &backend,
+                   unsigned int it) {
 
     // Particle binning
     for (auto particle_binning : params.particle_binning_properties_) {
@@ -334,8 +337,9 @@ struct task_graph {
                       const std::ptrdiff_t n_species,
                       const std::ptrdiff_t n_task_solverBC,
                       const std::ptrdiff_t n_task_solver_faraday)
-    : currentBC_antenna{2*patch_count}, imbalance_operator{2*patch_count}, particles_print{patch_count},
-      maxwell_solverBC{n_task_solverBC}, maxwell_faraday_scheduler{n_task_solver_faraday} {
+    : currentBC_antenna{2 * patch_count}, imbalance_operator{2 * patch_count},
+      particles_print{patch_count}, maxwell_solverBC{n_task_solverBC},
+      maxwell_faraday_scheduler{n_task_solver_faraday} {
     assert(patch_count > 0);
 
     for (auto _ : std::views::iota(std::ptrdiff_t{0}, patch_count)) {
@@ -376,7 +380,7 @@ auto particle_binning(task_graph &task_graph,
                       Timers &timers,
                       Profiler &profiler,
                       std::vector<Patch> &patches_,
-                      int &it) -> void {
+                      unsigned int &it) -> void {
   operators::particle_binning(params, timers, profiler, patches_, it);
   task_graph.completion.count_down();
 }
@@ -386,7 +390,7 @@ auto particle_cloud(task_graph &task_graph,
                     Timers &timers,
                     Profiler &profiler,
                     std::vector<Patch> &patches_,
-                    int &it) -> void {
+                    unsigned int &it) -> void {
   operators::particle_cloud(params, timers, profiler, patches_, it);
   task_graph.completion.count_down();
 }
@@ -396,7 +400,7 @@ auto particle_scalars(task_graph &task_graph,
                       Timers &timers,
                       Profiler &profiler,
                       std::vector<Patch> &patches_,
-                      int &it) -> void {
+                      unsigned int &it) -> void {
   operators::particle_scalars(params, timers, profiler, patches_, it);
   task_graph.completion.count_down();
 }
@@ -406,7 +410,7 @@ auto diags_scalars(task_graph &task_graph,
                    Timers &timers,
                    Profiler &profiler,
                    ElectroMagn &em,
-                   int it) -> void {
+                   unsigned int it) -> void {
   operators::diags_scalars(params, timers, profiler, em, it);
   task_graph.completion.count_down();
 }
@@ -416,7 +420,7 @@ auto diags_fields(task_graph &task_graph,
                   Timers &timers,
                   Profiler &profiler,
                   ElectroMagn &em,
-                  int it) -> void {
+                  unsigned int it) -> void {
   operators::diags_fields(params, timers, profiler, em, it);
   task_graph.completion.count_down();
 }
@@ -426,7 +430,7 @@ auto terminal_print(task_graph &task_graph,
                     Timers &timers,
                     Profiler &profiler,
                     std::vector<Patch> &patches_,
-                    int &it) -> void {
+                    unsigned int &it) -> void {
   operators::terminal_print(params, timers, profiler, patches_, it);
   task_graph.completion.count_down();
 }
@@ -437,7 +441,7 @@ auto maxwell_solverBC(task_system &task_system,
                       Timers &timers,
                       Profiler &profiler,
                       ElectroMagn &em,
-                      int &it) -> void {
+                      unsigned int &it) -> void {
 
   timers.stop(timers.maxwell_solver);
 
@@ -472,8 +476,8 @@ auto maxwell_faraday_scheduler(task_system &task_system,
                                Timers &timers,
                                Profiler &profiler,
                                ElectroMagn &em,
-                               int &it,
-                               const double dt,        
+                               unsigned int &it,
+                               const double dt,
                                const double dt_over_dx,
                                const double dt_over_dy,
                                const double dt_over_dz) -> void {
@@ -482,54 +486,63 @@ auto maxwell_faraday_scheduler(task_system &task_system,
   for (unsigned int i = 0; i < em.nx_p_m; i++) {
 
     task_system.submit([&, i, dt, dt_over_dx, dt_over_dy, dt_over_dz] {
-      operators::solve_maxwell_faraday_bx_2d(params, timers, profiler, em, i,
-                                        dt, dt_over_dy, dt_over_dz);
+      operators::solve_maxwell_faraday_bx_2d(params,
+                                             timers,
+                                             profiler,
+                                             em,
+                                             i,
+                                             dt,
+                                             dt_over_dy,
+                                             dt_over_dz);
 
       if (task_graph.maxwell_solverBC.count_down()) {
         task_system.submit([&] {
           impl::maxwell_solverBC(task_system, task_graph, params, timers, profiler, em, it);
         });
-      
       }
-    
     });
-  
   }
 
   // Magnetic field By (d,p,d)
   for (unsigned int i = 1; i < em.nx_d_m - 1; i++) {
 
     task_system.submit([&, i, dt, dt_over_dx, dt_over_dy, dt_over_dz] {
-      operators::solve_maxwell_faraday_by_2d(params, timers, profiler, em, i,
-                                      dt, dt_over_dx, dt_over_dz);
+      operators::solve_maxwell_faraday_by_2d(params,
+                                             timers,
+                                             profiler,
+                                             em,
+                                             i,
+                                             dt,
+                                             dt_over_dx,
+                                             dt_over_dz);
 
       if (task_graph.maxwell_solverBC.count_down()) {
         task_system.submit([&] {
           impl::maxwell_solverBC(task_system, task_graph, params, timers, profiler, em, it);
         });
-     
       }
-    
     });
-  
   }
 
   // Magnetic field Bz (d,d,p)
   for (unsigned int i = 1; i < em.nx_d_m - 1; i++) {
 
     task_system.submit([&, i, dt, dt_over_dx, dt_over_dy, dt_over_dz] {
-      operators::solve_maxwell_faraday_bz_2d(params, timers, profiler, em, i,
-                                      dt, dt_over_dx, dt_over_dy);
+      operators::solve_maxwell_faraday_bz_2d(params,
+                                             timers,
+                                             profiler,
+                                             em,
+                                             i,
+                                             dt,
+                                             dt_over_dx,
+                                             dt_over_dy);
 
       if (task_graph.maxwell_solverBC.count_down()) {
         task_system.submit([&] {
           impl::maxwell_solverBC(task_system, task_graph, params, timers, profiler, em, it);
         });
-      
       }
-    
     });
-  
   }
 
 } // End function
@@ -540,8 +553,8 @@ auto maxwell_ampere_scheduler(task_system &task_system,
                               Timers &timers,
                               Profiler &profiler,
                               ElectroMagn &em,
-                              int &it,
-                              const double dt,        
+                              unsigned int &it,
+                              const double dt,
                               const double dt_over_dx,
                               const double dt_over_dy,
                               const double dt_over_dz) -> void {
@@ -550,48 +563,87 @@ auto maxwell_ampere_scheduler(task_system &task_system,
   for (unsigned int i = 0; i < em.nx_d_m; i++) {
 
     task_system.submit([&, i, dt, dt_over_dx, dt_over_dy, dt_over_dz] {
-      operators::solve_maxwell_ampere_ex_2d(params, timers, profiler, em, i,
-                                      dt, dt_over_dy, dt_over_dz);
+      operators::solve_maxwell_ampere_ex_2d(params,
+                                            timers,
+                                            profiler,
+                                            em,
+                                            i,
+                                            dt,
+                                            dt_over_dy,
+                                            dt_over_dz);
 
       if (task_graph.maxwell_faraday_scheduler.count_down()) {
-        impl::maxwell_faraday_scheduler(task_system, task_graph, params, timers, profiler, em, it,
-                                                            dt, dt_over_dx, dt_over_dy, dt_over_dz);
+        impl::maxwell_faraday_scheduler(task_system,
+                                        task_graph,
+                                        params,
+                                        timers,
+                                        profiler,
+                                        em,
+                                        it,
+                                        dt,
+                                        dt_over_dx,
+                                        dt_over_dy,
+                                        dt_over_dz);
       }
-    
     });
-  
   }
 
   // Electric field Ey (p,d,p)
   for (unsigned int i = 0; i < em.nx_p_m; i++) {
 
     task_system.submit([&, i, dt, dt_over_dx, dt_over_dy, dt_over_dz] {
-      operators::solve_maxwell_ampere_ey_2d(params, timers, profiler, em, i,
-                                      dt, dt_over_dx, dt_over_dz);
+      operators::solve_maxwell_ampere_ey_2d(params,
+                                            timers,
+                                            profiler,
+                                            em,
+                                            i,
+                                            dt,
+                                            dt_over_dx,
+                                            dt_over_dz);
 
       if (task_graph.maxwell_faraday_scheduler.count_down()) {
-        impl::maxwell_faraday_scheduler(task_system, task_graph, params, timers, profiler, em, it,
-                                                            dt, dt_over_dx, dt_over_dy, dt_over_dz);
+        impl::maxwell_faraday_scheduler(task_system,
+                                        task_graph,
+                                        params,
+                                        timers,
+                                        profiler,
+                                        em,
+                                        it,
+                                        dt,
+                                        dt_over_dx,
+                                        dt_over_dy,
+                                        dt_over_dz);
       }
-
     });
-  
   }
 
   // Electric field Ez (p,p,d)
   for (unsigned int i = 0; i < em.nx_p_m; i++) {
-    
+
     task_system.submit([&, i, dt, dt_over_dx, dt_over_dy, dt_over_dz] {
-      operators::solve_maxwell_ampere_ez_2d(params, timers, profiler, em, i,
-                                      dt, dt_over_dx, dt_over_dy);
+      operators::solve_maxwell_ampere_ez_2d(params,
+                                            timers,
+                                            profiler,
+                                            em,
+                                            i,
+                                            dt,
+                                            dt_over_dx,
+                                            dt_over_dy);
 
       if (task_graph.maxwell_faraday_scheduler.count_down()) {
-        impl::maxwell_faraday_scheduler(task_system, task_graph, params, timers, profiler, em, it,
-                                                            dt, dt_over_dx, dt_over_dy, dt_over_dz);
+        impl::maxwell_faraday_scheduler(task_system,
+                                        task_graph,
+                                        params,
+                                        timers,
+                                        profiler,
+                                        em,
+                                        it,
+                                        dt,
+                                        dt_over_dx,
+                                        dt_over_dy,
+                                        dt_over_dz);
       }
-    
     });
-  
   }
 
 } // End function
@@ -602,7 +654,7 @@ auto currentBC_antenna(task_system &task_system,
                        Timers &timers,
                        Profiler &profiler,
                        ElectroMagn &em,
-                       int &it) -> void {
+                       unsigned int &it) -> void {
 
   // ______________________________________________________
   // Start Maxwell
@@ -648,17 +700,24 @@ auto currentBC_antenna(task_system &task_system,
 
     if (task_graph.maxwell_ampere_scheduler.count_down()) {
       task_system.submit([&, dt, dt_over_dx, dt_over_dy, dt_over_dz] {
-        impl::maxwell_ampere_scheduler(task_system, task_graph, params, timers, profiler, em, it,
-                                        dt, dt_over_dx, dt_over_dy, dt_over_dz);
+        impl::maxwell_ampere_scheduler(task_system,
+                                       task_graph,
+                                       params,
+                                       timers,
+                                       profiler,
+                                       em,
+                                       it,
+                                       dt,
+                                       dt_over_dx,
+                                       dt_over_dy,
+                                       dt_over_dz);
       });
     }
-  } //end if
-  else
-  {
+  } // end if
+  else {
     task_system.submit([&] { impl::diags_scalars(task_graph, params, timers, profiler, em, it); });
     task_system.submit([&] { impl::diags_fields(task_graph, params, timers, profiler, em, it); });
   }
-
 }
 
 auto imbalance_schedule(task_system &task_system,
@@ -669,7 +728,7 @@ auto imbalance_schedule(task_system &task_system,
                         std::vector<Patch> &patches_,
                         ElectroMagn &em,
                         const std::ptrdiff_t patch_index,
-                        int &it) -> void {
+                        unsigned int &it) -> void {
   // timers.start(params, "evolve_bin", patch_index);
   int n_species = patches_[patch_index].particles_m.size();
 
@@ -729,15 +788,15 @@ auto imbalance_schedule(task_system &task_system,
 }
 
 auto projection_borders(task_system &task_system,
-                       task_graph &task_graph,
-                       Params &params,
-                       Timers &timers,
-                       Profiler &profiler,
-                       std::vector<Patch> &patches_,
-                       ElectroMagn &em,
-                       std::mutex &mutex,
-                       int &it,
-                       const std::ptrdiff_t patch_index) -> void {
+                        task_graph &task_graph,
+                        Params &params,
+                        Timers &timers,
+                        Profiler &profiler,
+                        std::vector<Patch> &patches_,
+                        ElectroMagn &em,
+                        std::mutex &mutex,
+                        unsigned int &it,
+                        const std::ptrdiff_t patch_index) -> void {
 
   // __________________________________________________________________
   // Sum all species contribution in the local and global current grids
@@ -752,7 +811,6 @@ auto projection_borders(task_system &task_system,
     operators::local2global_borders(em, patches_[patch_index]);
     profiler.stop();
     timers.stop(timers.current_global_reduc, patch_index);
-
   }
 
   // __________________________________________________________________
@@ -779,17 +837,16 @@ auto projection_borders(task_system &task_system,
   }
 }
 
-
 auto projection_internal(task_system &task_system,
-                       task_graph &task_graph,
-                       Params &params,
-                       Timers &timers,
-                       Profiler &profiler,
-                       std::vector<Patch> &patches_,
-                       ElectroMagn &em,
-                       std::mutex &mutex,
-                       int &it,
-                       const std::ptrdiff_t patch_index) -> void {
+                         task_graph &task_graph,
+                         Params &params,
+                         Timers &timers,
+                         Profiler &profiler,
+                         std::vector<Patch> &patches_,
+                         ElectroMagn &em,
+                         std::mutex &mutex,
+                         unsigned int &it,
+                         const std::ptrdiff_t patch_index) -> void {
 
   // __________________________________________________________________
   // Sum all species contribution in the local and global current grids
@@ -804,7 +861,6 @@ auto projection_internal(task_system &task_system,
     operators::local2global_internal(em, patches_[patch_index]);
     profiler.stop();
     timers.stop(timers.current_global_reduc, patch_index);
-
   }
 
   // __________________________________________________________________
@@ -831,7 +887,6 @@ auto projection_internal(task_system &task_system,
   }
 }
 
-
 auto exchange(task_system &task_system,
               task_graph &task_graph,
               Params &params,
@@ -839,7 +894,7 @@ auto exchange(task_system &task_system,
               Profiler &profiler,
               std::vector<Patch> &patches_,
               ElectroMagn &em,
-              int &it,
+              unsigned int &it,
               std::mutex &mutex,
               const std::ptrdiff_t patch_index) -> void {
 
@@ -877,7 +932,7 @@ auto exchange_schedule(task_system &task_system,
                        Timers &timers,
                        Profiler &profiler,
                        ElectroMagn &em,
-                       int &it,
+                       unsigned int &it,
                        std::mutex &mutex,
                        const std::ptrdiff_t patch_index) -> void {
   int i_patch = patches_[patch_index].i_patch_topology_m;
@@ -920,7 +975,7 @@ auto evolve_patch(task_system &task_system,
                   Timers &timers,
                   Profiler &profiler,
                   ElectroMagn &em,
-                  int &it,
+                  unsigned int &it,
                   std::mutex &mutex,
                   const std::ptrdiff_t patch_index) -> void {
 
@@ -965,33 +1020,32 @@ auto evolve_patch(task_system &task_system,
     // Sum all species contribution in the local fields
     operators::reduc_current(patches_[patch_index]);
     timers.stop(timers.current_local_reduc, patch_index);
-
   }
 
   task_system.submit([&, patch_index] {
     impl::projection_internal(task_system,
-                            task_graph,
-                            params,
-                            timers,
-                            profiler,
-                            patches_,
-                            em,
-                            mutex,
-                            it,
-                            patch_index);
+                              task_graph,
+                              params,
+                              timers,
+                              profiler,
+                              patches_,
+                              em,
+                              mutex,
+                              it,
+                              patch_index);
   });
 
   task_system.submit([&, patch_index] {
     impl::projection_borders(task_system,
-                            task_graph,
-                            params,
-                            timers,
-                            profiler,
-                            patches_,
-                            em,
-                            mutex,
-                            it,
-                            patch_index);
+                             task_graph,
+                             params,
+                             timers,
+                             profiler,
+                             patches_,
+                             em,
+                             mutex,
+                             it,
+                             patch_index);
   });
 
   // __________________________________________________________________
@@ -1007,7 +1061,6 @@ auto evolve_patch(task_system &task_system,
                           it,
                           mutex,
                           patch_index);
-
 }
 
 auto evolve_schedule(task_system &task_system,
@@ -1019,7 +1072,7 @@ auto evolve_schedule(task_system &task_system,
                      Profiler &profiler,
                      ElectroMagn &em,
                      std::mutex &mutex,
-                     int &it,
+                     unsigned int &it,
                      const std::ptrdiff_t patch_index) -> void {
 
   int n_species = patches_[patch_index].particles_m.size();
@@ -1088,8 +1141,8 @@ auto evolve_schedule(task_system &task_system,
             });
           } // end next task
         }); // end task
-      }     // end bin loop
-    }       // end if end if n particles
+      } // end bin loop
+    } // end if end if n particles
     else {
       if (task_graph.evolve[patch_index].count_down()) {
         task_system.submit([&, patch_index] {
@@ -1108,7 +1161,7 @@ auto evolve_schedule(task_system &task_system,
       } // end next task
 
     } // end if end if n particles
-  }   // end loop species
+  } // end loop species
 
   if (n_species < 1) {
     task_system.submit([&, patch_index] {
@@ -1136,7 +1189,7 @@ auto reset_current(task_system &task_system,
                    Profiler &profiler,
                    ElectroMagn &em,
                    std::mutex &mutex,
-                   int &it) -> void {
+                   unsigned int &it) -> void {
 
   operators::reset_current(params, timers, profiler, em);
 
@@ -1170,23 +1223,23 @@ auto sync_exec(task_graph &task_graph,
                Timers &timers,
                Profiler &profiler,
                Backend &backend,
-               int &it) -> void {
+               unsigned int &it) -> void {
 
   auto &task_system = (*backend.task_system_);
   auto &mutex       = (*backend.mutex);
 
-task_system.submit([&] {
-  impl::reset_current(task_system,
-                      task_graph,
-                      subdomain.patches_,
-                      params,
-                      backend,
-                      timers,
-                      profiler,
-                      subdomain.em_,
-                      mutex,
-                      it);
-});
+  task_system.submit([&] {
+    impl::reset_current(task_system,
+                        task_graph,
+                        subdomain.patches_,
+                        params,
+                        backend,
+                        timers,
+                        profiler,
+                        subdomain.em_,
+                        mutex,
+                        it);
+  });
 
   const auto patch_count = std::ssize(subdomain.patches_);
 

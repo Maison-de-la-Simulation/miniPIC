@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "Backend.hpp"
-#include "Diagnotics.hpp"
+#include "Diagnostics.hpp"
 #include "Operators.hpp"
 #include "Params.hpp"
 #include "Patch.hpp"
@@ -192,7 +192,6 @@ public:
                 << std::scientific << std::setprecision(p) << sum_host[i] << " | " << std::setw(10)
                 << std::scientific << std::setprecision(p) << sum_device[i] << " | " << std::endl;
     }
-    
   }
 
   // ______________________________________________________________________________
@@ -205,20 +204,20 @@ public:
   // ______________________________________________________________________________
   void iterate(Params &params, Timers &timers, Profiler &profiler, Backend &backend, int it) {
 
-    int *evolve_particles_flags = backend.evolve_particles_flags;
-    int *reset_current_flags = backend.reset_current_flags;
-    int *maxwell_solver_flags = backend.maxwell_solver_flags;
+    int *evolve_particles_flags   = backend.evolve_particles_flags;
+    int *reset_current_flags      = backend.reset_current_flags;
+    int *maxwell_solver_flags     = backend.maxwell_solver_flags;
     int *reduction_internal_flags = backend.reduction_internal_flags;
-    int *reduction_external_flags = backend.reduction_external_flags;               
-    int *evolve_patch_flags = backend.evolve_patch_flags;
+    int *reduction_external_flags = backend.reduction_external_flags;
+    int *evolve_patch_flags       = backend.evolve_patch_flags;
 
     std::deque<std::atomic<int>> &task_exchange_count_ = backend.task_exchange_count_;
 
 #pragma omp taskgroup
     {
 
-#pragma omp task untied default(none) firstprivate(params) shared(em_, timers, profiler, minipic::host) \
-  depend(out : reset_current_flags)
+#pragma omp task untied default(none) firstprivate(params) \
+  shared(em_, timers, profiler, minipic::host) depend(out : reset_current_flags)
       {
 
         if (params.current_projection || params.n_particles > 0) {
@@ -232,12 +231,11 @@ public:
 
           timers.stop(timers.reset_current);
           profiler.stop();
-          
+
           DEBUG("stop reset current");
 
         } // end if
-      
-      } 
+      }
 
       //  ______________________________________________________
       //  Create the bins and execution functions by bin
@@ -264,9 +262,8 @@ public:
               int init = i_bin * bin_size;        // start of bin
               int end  = i_bin * bin_size + size; // end of bin
 
-#pragma omp task untied default(none) firstprivate(idx_patch, is, init, end, rest) \
-  shared(timers, profiler, patches_, em_, params)                                  \
-  depend(out : evolve_particles_flags[idx_patch]) \
+#pragma omp task untied default(none) firstprivate(idx_patch, is, init, end, rest)                \
+  shared(timers, profiler, patches_, em_, params) depend(out : evolve_particles_flags[idx_patch]) \
   priority(bin_number)
               {
                 profiler.start(EVOLVE_BIN);
@@ -308,39 +305,39 @@ public:
                                         end);
 
                   timers.stop(timers.pushBC, idx_patch);
-                  
+
                 } // end rest particles
 
                 profiler.stop();
               } // end task
-            }   // end bin loop
-          }     // end if n particles
-        }       // end loop species
-      }         // end of the loop
+            } // end bin loop
+          } // end if n particles
+        } // end loop species
+      } // end of the loop
 
       //  ______________________________________________________
       // Continue witn function can only by solved by patch
 
       for (int idx_patch = 0; idx_patch < patches_.size(); idx_patch++) {
 
-#pragma omp task untied default(none) firstprivate(idx_patch,it) shared(patches_,                \
-                                                                       timers,                   \
-                                                                       profiler,                 \
-                                                                       params,                   \
-                                                                       task_exchange_count_,     \
-                                                                       reset_current_flags,      \
-                                                                       evolve_particles_flags,   \
-                                                                       reduction_internal_flags, \
-                                                                       reduction_external_flags, \
-                                                                       backend                   \
-                                                                    ) \
-  depend(in : evolve_particles_flags[idx_patch]) depend(in : reset_current_flags)
+#pragma omp task untied default(none) firstprivate(idx_patch, it)  \
+  shared(patches_,                                                 \
+           timers,                                                 \
+           profiler,                                               \
+           params,                                                 \
+           task_exchange_count_,                                   \
+           reset_current_flags,                                    \
+           evolve_particles_flags,                                 \
+           reduction_internal_flags,                               \
+           reduction_external_flags,                               \
+           backend) depend(in : evolve_particles_flags[idx_patch]) \
+  depend(in : reset_current_flags)
         {
 
           profiler.start(EVOLVE_PATCH);
 
           ////
-          
+
           if (params.current_projection) {
 
             // __________________________________________________________________
@@ -348,12 +345,12 @@ public:
 
             timers.start(timers.projection, idx_patch);
             DEBUG("start project");
-  
+
             // Project in buffers local to the patches
             operators::project(params, patches_[idx_patch]);
 
             DEBUG("stop project");
-            timers.stop(timers.projection, idx_patch);          
+            timers.stop(timers.projection, idx_patch);
           }
 
           // __________________________________________________________________
@@ -370,7 +367,7 @@ public:
           timers.stop(timers.id_parts_to_move, idx_patch);
 
           ////
-          
+
           profiler.stop();
 
           if (params.current_projection || params.n_particles > 0) {
@@ -385,9 +382,9 @@ public:
 
             timers.stop(timers.current_local_reduc, idx_patch);
 
-            #pragma omp task untied default(none) firstprivate(idx_patch) \
-            shared(timers, patches_, profiler, em_, params) \
-            //depend(out : reduction_internal_flags[idx_patch])
+#pragma omp task untied default(none) firstprivate(idx_patch) \
+  shared(timers, patches_, profiler, em_, params)
+            // depend(out : reduction_internal_flags[idx_patch])
             {
               // __________________________________________________________________
               // Projection to global grid internal
@@ -399,9 +396,9 @@ public:
               timers.stop(timers.current_global_reduc, idx_patch);
             } // end task
 
-            #pragma omp task untied default(none) firstprivate(idx_patch) \
-            shared(timers, patches_, profiler, em_, params) \
-            //depend(out : reduction_external_flags[idx_patch])
+#pragma omp task untied default(none) firstprivate(idx_patch) \
+  shared(timers, patches_, profiler, em_, params)
+            // depend(out : reduction_external_flags[idx_patch])
             {
               // __________________________________________________________________
               // Projection to global grid internal
@@ -441,12 +438,11 @@ public:
                     {
 
                       timers.start(timers.exchange, idx_neighbor);
-                      profiler.start(EXCHANGE)
-                      DEBUG("Patch " << idx_neighbor << ": exchange");
+                      profiler.start(EXCHANGE) DEBUG("Patch " << idx_neighbor << ": exchange");
 
                       operators::exchange_particles(params, patches_, idx_neighbor);
                       DEBUG("Patch " << idx_neighbor << ": exchange");
-                      profiler.stop();                      
+                      profiler.stop();
                       timers.stop(timers.exchange, idx_neighbor);
 
                     } // end exchange task
@@ -454,13 +450,13 @@ public:
                     task_exchange_count_[idx_neighbor] = 27; // Reset count
 
                   } // end if conditional patch ready
-                }   // end k cycle
-              }     // end j cycle
-            }       // end i cycle
-          }         // end if task patch > 1
-        }           // end task
-      }             // end for loop
-    }               // end of taskgroup
+                } // end k cycle
+              } // end j cycle
+            } // end i cycle
+          } // end if task patch > 1
+        } // end task
+      } // end for loop
+    } // end of taskgroup
 
     // __________________________________________________________________
     // Imbalance operator
@@ -506,12 +502,12 @@ public:
                   } // end rest particles
 
                 } // end task
-              }   // end bin loop
-            }     // end if n particles
-          }       // end loop species
-        }         // end loop patches
-      }           // end taskgroup
-    }             // end imbalance if
+              } // end bin loop
+            } // end if n particles
+          } // end loop species
+        } // end loop patches
+      } // end taskgroup
+    } // end imbalance if
 
     if (params.maxwell_solver) {
 
@@ -566,8 +562,8 @@ public:
         profiler.stop();
 
       } // end task
-    }   // end if maxwell
-  }     // end iterate
+    } // end if maxwell
+  } // end iterate
 
   // ________________________________________________________________
   //! \brief Perform all diagnostics
@@ -616,10 +612,10 @@ public:
               timers.stop(timers.diags_binning);
               profiler.stop();
             } // end if test it % period
-          }   // end task
+          } // end task
 
         } // end inner loop
-      }   // end loop on particle_binning_properties_
+      } // end loop on particle_binning_properties_
 
       // Particle Clouds
       if ((params.particle_cloud_period < params.n_it) &&
@@ -635,7 +631,7 @@ public:
             Diags::particle_cloud("cloud", params, patches_, is, it, params.particle_cloud_format);
             profiler.stop();
           } // End task
-        }   // end for
+        } // end for
 
         timers.stop(timers.diags_cloud);
       }
@@ -679,7 +675,7 @@ public:
           profiler.stop();
           timers.stop(timers.diags_scalar);
         } // End task
-      }   // If end
+      } // If end
 
       // Field diagnostics
       if (!(it % params.field_diagnostics_period)) {
@@ -695,8 +691,8 @@ public:
           profiler.stop();
           timers.stop(timers.diags_field);
         } // end task
-      }   // If end
-    }     // End taskgroup
+      } // If end
+    } // End taskgroup
 
   } // end diagnostics
 

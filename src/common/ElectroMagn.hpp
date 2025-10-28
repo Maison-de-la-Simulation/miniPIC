@@ -72,24 +72,32 @@ public:
     inv_dz_m          = params.inv_dz;
     inv_cell_volume_m = params.inv_cell_volume;
 
+
+    DEBUG("Start Allocate current arrays");
     Jx_m.allocate(nx_d_m, ny_p_m + 2, nz_p_m + 2, backend, 0.0, 1, 0, 0, "Jx");
     Jy_m.allocate(nx_p_m + 2, ny_d_m, nz_p_m + 2, backend, 0.0, 0, 1, 0, "Jy");
     Jz_m.allocate(nx_p_m + 2, ny_p_m + 2, nz_d_m, backend, 0.0, 0, 0, 1, "Jz");
+    DEBUG("End Allocate current arrays");
 
     // Jx_m.allocate(nx_d_m, ny_p_m, nz_p_m, 0.0, 1, 0, 0, "Jx");
     // Jy_m.allocate(nx_p_m, ny_d_m, nz_p_m, 0.0, 0, 1, 0, "Jy");
     // Jz_m.allocate(nx_p_m, ny_p_m, nz_d_m, 0.0, 0, 0, 1, "Jz");
-
+    DEBUG("Start Allocate electric fields");
     Ex_m.allocate(nx_d_m, ny_p_m, nz_p_m, backend, params.E0_[0], 1, 0, 0, "Ex");
     Ey_m.allocate(nx_p_m, ny_d_m, nz_p_m, backend, params.E0_[1], 0, 1, 0, "Ey");
     Ez_m.allocate(nx_p_m, ny_p_m, nz_d_m, backend, params.E0_[2], 0, 0, 1, "Ez");
+    DEBUG("End Allocate electric fields");
 
+    DEBUG("Start Allocate magnetic fields");
     Bx_m.allocate(nx_p_m, ny_d_m, nz_d_m, backend, params.B0_[0], 0, 1, 1, "Bx");
     By_m.allocate(nx_d_m, ny_p_m, nz_d_m, backend, params.B0_[1], 1, 0, 1, "By");
     Bz_m.allocate(nx_d_m, ny_d_m, nz_p_m, backend, params.B0_[2], 1, 1, 0, "Bz");
+    DEBUG("End Allocate magnetic fields");
 
     // Load all field to the device
+    DEBUG("Start sync fields");
     sync(minipic::host, minipic::device);
+    DEBUG("End sync fields");
   }
 
   // ____________________________________________________________________________
@@ -155,4 +163,3 @@ public:
     }
   }
 };
-

@@ -8,6 +8,10 @@ def evaluate(value, reference, threshold, operator = "relative",  txt = ""):
     flag = False
     error_value = 0
 
+    # Check Nan or Inf
+    if (math.isnan(value) or math.isinf(value)):
+        error(txt + ": Nan or Inf value detected")
+
     if (operator == "<"):
 
         error_value = math.fabs(value - threshold)

@@ -168,9 +168,9 @@ public:
     for (int is = 0; is < n_species_m; is++) {
 
       // Number of particles for this species is
-      unsigned int n_particles = particles_m[is].size();
+      size_t n_particles = particles_m[is].size();
 
-      for (unsigned int ip = 0; ip < n_particles; ip++) {
+      for (size_t ip = 0; ip < n_particles; ip++) {
 
         if ((particles_m[is].x_h(ip) < inf_m[0]) || (particles_m[is].x_h(ip) >= sup_m[0]) or
             (particles_m[is].y_h(ip) < inf_m[1]) or (particles_m[is].y_h(ip) >= sup_m[1]) or
@@ -192,8 +192,8 @@ public:
   //
   //! Return the total number of particles in the patch
   // __________________________________________________
-  unsigned int get_total_number_of_particles() {
-    unsigned int sum = 0;
+  size_t get_total_number_of_particles() {
+    size_t sum = 0;
     for (int is = 0; is < n_species_m; is++) {
       sum += particles_m[is].size();
     }

@@ -123,13 +123,14 @@ void setup(Params &params) {
 
   // Hydrogen Plasma
   params.add_species("electron", 1, -1, temperature, profile, {0, 0, 0}, 128, "random", "cell");
-  params.add_species("proton", 1836.125, 1, temperature, profile, {0, 0, 0}, 128, "electron", "cell");
+  params
+    .add_species("proton", 1836.125, 1, temperature, profile, {0, 0, 0}, 128, "electron", "cell");
 
   // Momentum correction at init
   params.momentum_correction = false;
 
   // Bourndary conditions
-  params.boundary_condition = "periodic";
+  params.boundary_condition     = "periodic";
   params.no_diagnostics_at_init = true;
 
   // Display

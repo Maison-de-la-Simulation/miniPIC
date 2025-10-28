@@ -11,10 +11,10 @@
 #include "Profiler.hpp"
 #include "Timers.hpp"
 
+#include <atomic>
+#include <latch>
 #include <mutex>
 #include <numeric>
-#include <latch>
-#include <atomic>
 
 #ifndef OPERATORS_H
 #define OPERATORS_H
@@ -493,7 +493,7 @@ auto push_momentum(Patch &patch, double dt) -> void {
       patch.particles_m[is].mz_h(ip) = pz;
 
     } // End for each particles
-  }   // end for species
+  } // end for species
 }
 
 // _____________________________________________________________________
@@ -589,8 +589,8 @@ auto pushBC_bin(Params &params,
           }
         }
       } // end for
-    }   // if type of conditions
-  }     // if on border
+    } // if type of conditions
+  } // if on border
 }
 
 // _____________________________________________________________________
@@ -606,7 +606,7 @@ auto imbalance_operator(Params &params,
                         Particles<double> &particles,
                         int init,
                         int end,
-                        int it,
+                        unsigned int it,
                         std::function<double(double, double, double, double)> func_weight) -> void {
 
 #if defined(__MINIPIC_SIMD__)
@@ -618,7 +618,7 @@ auto imbalance_operator(Params &params,
     double y = particles.y_h(ip);
     double z = particles.z_h(ip);
 
-    double t      = it * params.dt ;// * dt;
+    double t      = it * params.dt; // * dt;
     double weight = 0;
 
     // double n = static_cast<double>(std::rand()) / RAND_MAX ;
@@ -958,26 +958,24 @@ auto solve_maxwell_ampere_ex_2d(Params &params,
                                 Profiler &profiler,
                                 ElectroMagn &em,
                                 int ix,
-                                const double dt,        
+                                const double dt,
                                 const double dt_over_dy,
                                 const double dt_over_dz) -> void {
 
   profiler.start(MAXWELL);
-  
+
   for (unsigned int iy = 0; iy < em.ny_p_m; iy++) {
 #if defined(__MINIPIC_SIMD__)
 #pragma omp simd
 #endif
     for (unsigned int iz = 0; iz < em.nz_p_m; iz++) {
-      em.Ex_m(ix, iy, iz) +=
-        -dt * em.Jx_m(ix, iy + 1, iz + 1) +
-        dt_over_dy * (em.Bz_m(ix, iy + 1, iz) - em.Bz_m(ix, iy, iz)) -
-        dt_over_dz * (em.By_m(ix, iy, iz + 1) - em.By_m(ix, iy, iz));
+      em.Ex_m(ix, iy, iz) += -dt * em.Jx_m(ix, iy + 1, iz + 1) +
+                             dt_over_dy * (em.Bz_m(ix, iy + 1, iz) - em.Bz_m(ix, iy, iz)) -
+                             dt_over_dz * (em.By_m(ix, iy, iz + 1) - em.By_m(ix, iy, iz));
     }
   }
 
   profiler.stop();
-
 };
 
 // ______________________________________________________
@@ -987,7 +985,7 @@ auto solve_maxwell_ampere_ey_2d(Params &params,
                                 Profiler &profiler,
                                 ElectroMagn &em,
                                 int ix,
-                                const double dt,        
+                                const double dt,
                                 const double dt_over_dx,
                                 const double dt_over_dz) -> void {
 
@@ -998,15 +996,13 @@ auto solve_maxwell_ampere_ey_2d(Params &params,
 #pragma omp simd
 #endif
     for (unsigned int iz = 0; iz < em.nz_p_m; iz++) {
-      em.Ey_m(ix, iy, iz) +=
-        -dt * em.Jy_m(ix + 1, iy, iz + 1) -
-        dt_over_dx * (em.Bz_m(ix + 1, iy, iz) - em.Bz_m(ix, iy, iz)) +
-        dt_over_dz * (em.Bx_m(ix, iy, iz + 1) - em.Bx_m(ix, iy, iz));
+      em.Ey_m(ix, iy, iz) += -dt * em.Jy_m(ix + 1, iy, iz + 1) -
+                             dt_over_dx * (em.Bz_m(ix + 1, iy, iz) - em.Bz_m(ix, iy, iz)) +
+                             dt_over_dz * (em.Bx_m(ix, iy, iz + 1) - em.Bx_m(ix, iy, iz));
     }
   }
 
   profiler.stop();
-
 };
 
 // ______________________________________________________
@@ -1016,7 +1012,7 @@ auto solve_maxwell_ampere_ez_2d(Params &params,
                                 Profiler &profiler,
                                 ElectroMagn &em,
                                 int ix,
-                                const double dt,        
+                                const double dt,
                                 const double dt_over_dx,
                                 const double dt_over_dy) -> void {
 
@@ -1027,15 +1023,13 @@ auto solve_maxwell_ampere_ez_2d(Params &params,
 #pragma omp simd
 #endif
     for (unsigned int iz = 0; iz < em.nz_d_m; iz++) {
-      em.Ez_m(ix, iy, iz) +=
-        -dt * em.Jz_m(ix + 1, iy + 1, iz) +
-        dt_over_dx * (em.By_m(ix + 1, iy, iz) - em.By_m(ix, iy, iz)) -
-        dt_over_dy * (em.Bx_m(ix, iy + 1, iz) - em.Bx_m(ix, iy, iz));
+      em.Ez_m(ix, iy, iz) += -dt * em.Jz_m(ix + 1, iy + 1, iz) +
+                             dt_over_dx * (em.By_m(ix + 1, iy, iz) - em.By_m(ix, iy, iz)) -
+                             dt_over_dy * (em.Bx_m(ix, iy + 1, iz) - em.Bx_m(ix, iy, iz));
     }
   }
 
   profiler.stop();
-
 };
 
 // ______________________________________________________
@@ -1045,7 +1039,7 @@ auto solve_maxwell_faraday_bx_2d(Params &params,
                                  Profiler &profiler,
                                  ElectroMagn &em,
                                  int ix,
-                                 const double dt,        
+                                 const double dt,
                                  const double dt_over_dy,
                                  const double dt_over_dz) -> void {
 
@@ -1056,14 +1050,12 @@ auto solve_maxwell_faraday_bx_2d(Params &params,
 #pragma omp simd
 #endif
     for (unsigned int iz = 1; iz < em.nz_d_m - 1; iz++) {
-      em.Bx_m(ix, iy, iz) +=
-        -dt_over_dy * (em.Ez_m(ix, iy, iz) - em.Ez_m(ix, iy - 1, iz)) +
-        dt_over_dz * (em.Ey_m(ix, iy, iz) - em.Ey_m(ix, iy, iz - 1));
+      em.Bx_m(ix, iy, iz) += -dt_over_dy * (em.Ez_m(ix, iy, iz) - em.Ez_m(ix, iy - 1, iz)) +
+                             dt_over_dz * (em.Ey_m(ix, iy, iz) - em.Ey_m(ix, iy, iz - 1));
     }
   }
 
   profiler.stop();
-
 };
 
 // ______________________________________________________
@@ -1073,7 +1065,7 @@ auto solve_maxwell_faraday_by_2d(Params &params,
                                  Profiler &profiler,
                                  ElectroMagn &em,
                                  int ix,
-                                 const double dt,        
+                                 const double dt,
                                  const double dt_over_dx,
                                  const double dt_over_dz) -> void {
 
@@ -1084,14 +1076,12 @@ auto solve_maxwell_faraday_by_2d(Params &params,
 #pragma omp simd
 #endif
     for (unsigned int iz = 1; iz < em.nz_d_m - 1; iz++) {
-      em.By_m(ix, iy, iz) +=
-        -dt_over_dz * (em.Ex_m(ix, iy, iz) - em.Ex_m(ix, iy, iz - 1)) +
-        dt_over_dx * (em.Ez_m(ix, iy, iz) - em.Ez_m(ix - 1, iy, iz));
+      em.By_m(ix, iy, iz) += -dt_over_dz * (em.Ex_m(ix, iy, iz) - em.Ex_m(ix, iy, iz - 1)) +
+                             dt_over_dx * (em.Ez_m(ix, iy, iz) - em.Ez_m(ix - 1, iy, iz));
     }
   }
 
   profiler.stop();
-
 };
 
 // ______________________________________________________
@@ -1101,25 +1091,23 @@ auto solve_maxwell_faraday_bz_2d(Params &params,
                                  Profiler &profiler,
                                  ElectroMagn &em,
                                  int ix,
-                                 const double dt,        
+                                 const double dt,
                                  const double dt_over_dx,
                                  const double dt_over_dy) -> void {
 
   profiler.start(MAXWELL);
-  
+
   for (unsigned int iy = 1; iy < em.ny_d_m - 1; iy++) {
 #if defined(__MINIPIC_SIMD__)
 #pragma omp simd
 #endif
     for (unsigned int iz = 0; iz < em.nz_p_m; iz++) {
-      em.Bz_m(ix, iy, iz) +=
-        -dt_over_dx * (em.Ey_m(ix, iy, iz) - em.Ey_m(ix - 1, iy, iz)) +
-        dt_over_dy * (em.Ex_m(ix, iy, iz) - em.Ex_m(ix, iy - 1, iz));
+      em.Bz_m(ix, iy, iz) += -dt_over_dx * (em.Ey_m(ix, iy, iz) - em.Ey_m(ix - 1, iy, iz)) +
+                             dt_over_dy * (em.Ex_m(ix, iy, iz) - em.Ex_m(ix, iy - 1, iz));
     }
   }
-  
-  profiler.stop();
 
+  profiler.stop();
 };
 
 // _______________________________________________________________
@@ -1745,8 +1733,8 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
             vec_patch[idx_neighbor].particles_to_move_m[is][idx_buffer].size();
 
         } // end for each neighbors
-      }   // end for each neighbors
-    }     // end for each neighbors
+      } // end for each neighbors
+    } // end for each neighbors
 
     if (coming_number_of_particles > 0) {
       patch.particles_m[is].resize(number_of_particles + coming_number_of_particles,
@@ -1823,8 +1811,8 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
           } // if buffer size > 0
 
         } // end for each neighbors
-      }   // end for each neighbors
-    }     // end for each neighbors
+      } // end for each neighbors
+    } // end for each neighbors
 
     // std::cerr << "end exchange" << std::endl;
 
@@ -1889,7 +1877,7 @@ auto reduc_current(Patch &patch) -> void {
       }
 
     } // end check if particles
-  }   // end for species
+  } // end for species
 }
 
 // ____________________________________________________________________________
@@ -2008,7 +1996,7 @@ auto local2global_internal(ElectroMagn &em, Patch &patch) -> void {
 #pragma omp simd
 #endif
         for (int iz = 3; iz < patch.vec_Jx_m[0].nz() - 3; iz++) {
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
@@ -2020,7 +2008,7 @@ auto local2global_internal(ElectroMagn &em, Patch &patch) -> void {
 #pragma omp simd
 #endif
         for (int iz = 3; iz < patch.vec_Jy_m[0].nz() - 3; iz++) {
-          em.Jy_m(i_global_p + ix, j_global_d + iy, k_global_p + iz) += 
+          em.Jy_m(i_global_p + ix, j_global_d + iy, k_global_p + iz) +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
@@ -2032,7 +2020,7 @@ auto local2global_internal(ElectroMagn &em, Patch &patch) -> void {
 #pragma omp simd
 #endif
         for (int iz = 3; iz < patch.vec_Jz_m[0].nz() - 3; iz++) {
-          em.Jz_m(i_global_p + ix, j_global_p + iy, k_global_d + iz) += 
+          em.Jz_m(i_global_p + ix, j_global_p + iy, k_global_d + iz) +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
@@ -2046,9 +2034,9 @@ auto local2global_internal(ElectroMagn &em, Patch &patch) -> void {
 //! \param[in] Patch & patch - current patch
 // ____________________________________________________________________________
 auto local2global_borders(ElectroMagn &em, Patch &patch) -> void {
-  
+
   static_assert(std::atomic_ref<double>::is_always_lock_free);
-  
+
   bool projected = false;
 
   for (int is = 0; is < patch.n_species_m; is++) {
@@ -2074,194 +2062,176 @@ auto local2global_borders(ElectroMagn &em, Patch &patch) -> void {
     for (int ix = 0; ix < 3; ix++) {
       for (int iy = 0; iy < patch.vec_Jx_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     for (int ix = patch.vec_Jx_m[0].nx() - 3; ix < patch.vec_Jx_m[0].nx(); ix++) {
       for (int iy = 0; iy < patch.vec_Jx_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     //_______
-    
+
     for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
       for (int iy = 0; iy < 3; iy++) {
         for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-  
-      for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
-        for (int iy = patch.vec_Jx_m[0].ny() - 3; iy < patch.vec_Jx_m[0].ny(); iy++) {
-          for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+
+    for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
+      for (int iy = patch.vec_Jx_m[0].ny() - 3; iy < patch.vec_Jx_m[0].ny(); iy++) {
+        for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
+          std::atomic_ref{em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     //_______
-  
+
     for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jx_m[0].ny() - 3; iy++) {
         for (int iz = 0; iz < 3; iz++) {
-std::atomic_ref {
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jx_m[0].ny() - 3; iy++) {
         for (int iz = patch.vec_Jx_m[0].nz() - 3; iz < patch.vec_Jx_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-  
-      //____________________________Y
-  
+
+    //____________________________Y
+
     for (int ix = 0; ix < 3; ix++) {
       for (int iy = 0; iy < patch.vec_Jy_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     for (int ix = patch.vec_Jy_m[0].nx() - 3; ix < patch.vec_Jy_m[0].nx(); ix++) {
       for (int iy = 0; iy < patch.vec_Jy_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     //_______
-    
+
     for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
       for (int iy = 0; iy < 3; iy++) {
         for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-  
-      for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
-        for (int iy = patch.vec_Jy_m[0].ny() - 3; iy < patch.vec_Jy_m[0].ny(); iy++) {
-          for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+
+    for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
+      for (int iy = patch.vec_Jy_m[0].ny() - 3; iy < patch.vec_Jy_m[0].ny(); iy++) {
+        for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
+          std::atomic_ref{em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     //_______
-  
+
     for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jy_m[0].ny() - 3; iy++) {
         for (int iz = 0; iz < 3; iz++) {
-std::atomic_ref {
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jy_m[0].ny() - 3; iy++) {
         for (int iz = patch.vec_Jy_m[0].nz() - 3; iz < patch.vec_Jy_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-    
-      //____________________________Z
-  
+
+    //____________________________Z
+
     for (int ix = 0; ix < 3; ix++) {
       for (int iy = 0; iy < patch.vec_Jz_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     for (int ix = patch.vec_Jz_m[0].nx() - 3; ix < patch.vec_Jz_m[0].nx(); ix++) {
       for (int iy = 0; iy < patch.vec_Jz_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     //_______
-    
+
     for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
       for (int iy = 0; iy < 3; iy++) {
         for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-  
-      for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
-        for (int iy = patch.vec_Jz_m[0].ny() - 3; iy < patch.vec_Jz_m[0].ny(); iy++) {
-          for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+
+    for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
+      for (int iy = patch.vec_Jz_m[0].ny() - 3; iy < patch.vec_Jz_m[0].ny(); iy++) {
+        for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
+          std::atomic_ref{em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     //_______
-  
+
     for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jz_m[0].ny() - 3; iy++) {
         for (int iz = 0; iz < 3; iz++) {
-std::atomic_ref {
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jz_m[0].ny() - 3; iy++) {
         for (int iz = patch.vec_Jz_m[0].nz() - 3; iz < patch.vec_Jz_m[0].nz(); iz++) {
-std::atomic_ref {
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) } += 
+          std::atomic_ref{em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz)} +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
@@ -2308,7 +2278,7 @@ auto particle_binning(Params &params,
                       Timers &timers,
                       Profiler &profiler,
                       std::vector<Patch> &patches_,
-                      int it) -> void {
+                      unsigned int it) -> void {
   // Particle binning
   for (auto particle_binning : params.particle_binning_properties_) {
 
@@ -2336,8 +2306,8 @@ auto particle_binning(Params &params,
         profiler.stop();
 
       } // end if test it % period
-    }   // end inner loop
-  }     // end loop on particle_binning_properties_
+    } // end inner loop
+  } // end loop on particle_binning_properties_
 };
 
 // ______________________________________________________
@@ -2347,7 +2317,7 @@ auto particle_cloud(Params &params,
                     Timers &timers,
                     Profiler &profiler,
                     std::vector<Patch> &patches_,
-                    int it) -> void {
+                    unsigned int it) -> void {
   // Particle Clouds
   if ((params.particle_cloud_period < params.n_it) &&
       (!(it % params.particle_cloud_period) or (it == 0))) {
@@ -2375,7 +2345,7 @@ auto particle_scalars(Params &params,
                       Timers &timers,
                       Profiler &profiler,
                       std::vector<Patch> &patches_,
-                      int it) -> void {
+                      unsigned int it) -> void {
   // Scalars diagnostics
   if (!(it % params.scalar_diagnostics_period)) {
     timers.start(timers.diags_scalar);
@@ -2399,7 +2369,7 @@ auto particle_diags(Params &params,
                     Timers &timers,
                     Profiler &profiler,
                     std::vector<Patch> &patches_,
-                    int it) -> void {
+                    unsigned int it) -> void {
   // Wrapper all functions
   particle_binning(params, timers, profiler, patches_, it);
   particle_cloud(params, timers, profiler, patches_, it);
@@ -2409,8 +2379,11 @@ auto particle_diags(Params &params,
 // ______________________________________________________
 // ______________________________________________________
 
-auto diags_scalars(Params &params, Timers &timers, Profiler &profiler, ElectroMagn &em, int it)
-  -> void {
+auto diags_scalars(Params &params,
+                   Timers &timers,
+                   Profiler &profiler,
+                   ElectroMagn &em,
+                   unsigned int it) -> void {
   // Scalar diagnostics
   if (!(it % params.scalar_diagnostics_period)) {
 
@@ -2428,8 +2401,11 @@ auto diags_scalars(Params &params, Timers &timers, Profiler &profiler, ElectroMa
 // ______________________________________________________
 // ______________________________________________________
 
-auto diags_fields(Params &params, Timers &timers, Profiler &profiler, ElectroMagn &em, int it)
-  -> void {
+auto diags_fields(Params &params,
+                  Timers &timers,
+                  Profiler &profiler,
+                  ElectroMagn &em,
+                  unsigned int it) -> void {
   // Field diagnostics
   if (!(it % params.field_diagnostics_period)) {
 
@@ -2447,8 +2423,11 @@ auto diags_fields(Params &params, Timers &timers, Profiler &profiler, ElectroMag
 // ______________________________________________________
 // ______________________________________________________
 
-auto field_diags(Params &params, Timers &timers, Profiler &profiler, ElectroMagn &em, int it)
-  -> void {
+auto field_diags(Params &params,
+                 Timers &timers,
+                 Profiler &profiler,
+                 ElectroMagn &em,
+                 unsigned int it) -> void {
   // Wrapper all functions
   diags_scalars(params, timers, profiler, em, it);
   diags_fields(params, timers, profiler, em, it);
@@ -2472,7 +2451,7 @@ auto terminal_print(Params &params,
                     Timers &timers,
                     Profiler &profiler,
                     std::vector<Patch> &patches_,
-                    int it) -> void {
+                    unsigned int it) -> void {
   if (!(it % params.print_period)) {
     const unsigned int total_number_of_particles = get_total_number_of_particles(patches_);
     double elapsed_time                          = timers.get_elapsed_time();

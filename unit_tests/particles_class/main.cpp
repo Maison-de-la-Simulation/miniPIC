@@ -121,62 +121,6 @@ int main(int argc, char *argv[]) {
         // _________________________________________________________________________
         std::cout << " > Test copy from device to host" << std::endl;
 
-#if defined(__MINIPIC_KOKKOS_COMMON__)
-
-    #if defined(__MINIPIC_KOKKOS__)
-
-        auto x = part.x_.data_.d_view;
-        auto y = part.y_.data_.d_view;
-        auto z = part.z_.data_.d_view;
-
-        auto mx = part.mx_.data_.d_view;
-        auto my = part.my_.data_.d_view;
-        auto mz = part.mz_.data_.d_view;
-
-    #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
-
-        auto x = part.x_.data_;
-        auto y = part.y_.data_;
-        auto z = part.z_.data_;
-
-        auto mx = part.mx_.data_;
-        auto my = part.my_.data_;
-        auto mz = part.mz_.data_;
-
-    #endif
-
-        Kokkos::parallel_for("init_on_device",Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0, nbparticle),KOKKOS_LAMBDA(const int& i) {
-
-            x(i) = i;
-            y(i) = i+2;
-            z(i) = i+3;
-
-            mx(i) = i;
-            my(i) = i*2;
-            mz(i) = i*3;
-        });
-
-        Kokkos::fence();
-
-#elif defined(__MINIPIC_STDPAR__)
-
-        // init values on device
-        mini_float * mx = part.mx_.get_raw_pointer(minipic::device);
-        mini_float * my = part.my_.get_raw_pointer(minipic::device);
-        mini_float * mz = part.mz_.get_raw_pointer(minipic::device);
-        mini_float * x = part.x_.get_raw_pointer(minipic::device);
-        mini_float * y = part.y_.get_raw_pointer(minipic::device);
-        mini_float * z = part.z_.get_raw_pointer(minipic::device);
-
-        part.weight_.fill(2.0);
-        std::for_each_n(std::execution::par_unseq, counting_iterator(0), nbparticle, [=](int i) {mx[i]=i; });
-        std::for_each_n(std::execution::par_unseq, counting_iterator(0), nbparticle, [=](int i) {my[i]=i*2; });
-        std::for_each_n(std::execution::par_unseq, counting_iterator(0), nbparticle, [=](int i) {mz[i]=i*3; });
-        std::for_each_n(std::execution::par_unseq, counting_iterator(0), nbparticle, [=](int i) {x[i]=i; });
-        std::for_each_n(std::execution::par_unseq, counting_iterator(0), nbparticle, [=](int i) {y[i]=i+2; });
-        std::for_each_n(std::execution::par_unseq, counting_iterator(0), nbparticle, [=](int i) {z[i]=i+3; });
-
-#endif
 
         part.sync(minipic::device, minipic::host);
 

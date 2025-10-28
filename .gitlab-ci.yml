@@ -1,0 +1,599 @@
+# _____________________________________________________________________________
+#
+# GitLab CI for miniPIC
+# _____________________________________________________________________________
+
+# image: gcc
+
+variables:
+  # List of GPUs to exclude from the tests
+  EXCLUDED_GPUS: "ruche-gpu16"
+  # List of benchmarks to run
+  BENCHMARKS_CPU_ALL: "default,beam,antenna,Ecst,Bcst"
+  BENCHMARKS_GPU_ALL: "default_gpu,beam_gpu,antenna"
+  BENCHMARKS_CPU_SHORT: "default"
+  BENCHMARKS_GPU_SHORT: "default_gpu"
+
+.default_run: &default_run [master, nvidia_profiling, fix_stdpar]
+
+# _____________________________________________________________________________
+#
+# Workflow
+# _____________________________________________________________________________
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+  rules:
+    # Run the CI if the commit message contains `[run ci]`
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      variables:
+        BENCHMARKS_CPU: $BENCHMARKS_CPU_SHORT
+        BENCHMARKS_GPU: $BENCHMARKS_GPU_SHORT
+      when: always
+    # Do not run the CI if the commit message
+    # contains `[skip ci]` or contains `draft`
+    - if: $CI_COMMIT_MESSAGE =~ /\[skip ci\]/ || $CI_COMMIT_REF_NAME =~ /\[draft\]/
+      when: never 
+    # For branches in default_run, run the CI
+    - if: $CI_COMMIT_BRANCH =~ /size_t_particles/
+      variables:
+        BENCHMARKS_CPU: $BENCHMARKS_CPU_SHORT
+        BENCHMARKS_GPU: $BENCHMARKS_GPU_SHORT
+      when: always
+    - if: $CI_COMMIT_BRANCH =~ /master|develop|std_cpp_par/
+      variables:
+        BENCHMARKS_CPU: $BENCHMARKS_CPU_ALL
+        BENCHMARKS_GPU: $BENCHMARKS_GPU_ALL
+      when: always
+    # Run CI whern a merge request is created
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        BENCHMARKS_CPU: $BENCHMARKS_CPU_ALL
+        BENCHMARKS_GPU: $BENCHMARKS_GPU_ALL
+      when: always
+
+# build:
+#   only: *default_run
+#   stage: build
+#   before_script:
+#     - apt update && apt -y install cmake
+#   script:
+#     - cmake -DCMAKE_CXX_COMPILER=g++-12 -DCMAKE_VERBOSE_MAKEFILE=ON ./ 
+#     - make
+#     - cp src/mini-pic .
+#   artifacts:
+#     paths:
+#       - mini-pic
+
+
+# _____________________________________________________________________________
+#
+# Build Kokkos for V100 GPU on Ruche
+# _____________________________________________________________________________
+# build_kokkos_v100:
+#   only: *default_run
+#   tags:
+#     - ruche
+#   stage: build
+#   before_script:
+#     - module load cmake/3.21.4/gcc-11.2.0 gcc/11.2.0/gcc-4.8.5 cuda/12.2.1/gcc-11.2.0
+#   script:
+#     - git clone git@github.com:kokkos/kokkos.git
+#     - cd kokkos
+#     - git checkout develop
+#     - mkdir build_v100 install_v100
+#     - cmake -S . -B build_v100 -DCMAKE_CXX_COMPILER=g++ -DCMAKE_INSTALL_PREFIX=$(pwd)/install_v100 -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_OPENMP=ON -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_VOLTA70=ON -DKokkos_ENABLE_CUDA_LAMBDA=ON -DCMAKE_CXX_EXTENSIONS=ON -DKokkos_ENABLE_CUDA_CONSTEXPR=ON
+#     - cd build_v100
+#     - make -j 4
+#     - make install
+#     - cd ..
+#   artifacts:
+#     paths:
+#       - $CI_PROJECT_DIR/kokkos/install_v100/
+
+# _____________________________________________________________________________
+#
+# Test OpenMP version on GitLab servers
+# _____________________________________________________________________________
+# test_openmp:
+#   image: gcc  
+#   only: *default_run
+#   stage: test
+#   before_script:
+#     - apt update && apt -y install cmake
+#     - apt-get install -y git python3-matplotlib python3-numpy # build-essential python3-dev python3-ipython
+#   script:
+#     - export PYTHONPATH=${PWD}:$PYTHONPATH
+#     - cd tests
+#     - python3 run.py
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using OpenMP On Ruche Cascadelakes
+# _____________________________________________________________________________
+
+test_omp:
+  # only: *default_run
+  rules:
+    # If not on the master branch and related files have been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/openmp/*
+        - src/common/*
+        - src/setups/*
+        - src/main.cpp
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  before_script:
+    # - source ${HOME}/env/kokkos_omp_cpu
+    - source ${WORKDIR}/gitlab-ci_runs/env/oneapi
+  script:
+    - cp -r tests tests_omp
+    - cd tests_omp
+    - srun --time=00:20:00 --cpus-per-task=8 --ntasks=1 --partition=cpu_short python3 run.py -c icpx --benchmarks=$BENCHMARKS_CPU # --save-timers
+  # dependencies:
+  #   - build_kokkos_v100
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using Kokkos OpenMP for CPU on Ruche
+# _____________________________________________________________________________
+
+test_kokkos_omp:
+  # only: *default_run
+  rules:
+    # If not on the master branch and `src/kokkos` has been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/kokkos/*
+        - src/common/*
+        - src/main.cpp
+        - src/setups/*
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has `[run ci]` in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  # needs: [ test_omp ]
+  before_script:
+    - source ${WORKDIR}/gitlab-ci_runs/env/kokkos_omp_cpu_intel
+  script:
+    - cp -r tests tests_kokkos_omp
+    - cd tests_kokkos_omp
+    - srun --time=00:20:00 --cpus-per-task=8 --ntasks=1 --partition=cpu_short python3 run.py -c icpx -g kokkos --benchmarks=$BENCHMARKS_CPU # --save-timers
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using Kokkos for V100 or A100 GPU on Ruche
+# _____________________________________________________________________________
+
+test_kokkos_gpu:
+  # only: *default_run
+  rules:
+    # If not on the master branch and `src/kokkos` has been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/kokkos/*
+        - src/common/*
+        - src/setups/*
+        - src/main.cpp
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  # needs: [ test_kokkos_omp ]
+  before_script:
+    - source $WORKDIR/gitlab-ci_runs/env/kokkos_a100
+  script:
+    - cp -r tests tests_kokkos_gpu
+    - cd tests_kokkos_gpu
+    - srun --nodes=1 --time=00:15:00 -p gpua100 --gres=gpu:1 --exclude=$EXCLUDED_GPUS python3 run.py -c g++ -g kokkos_gpu --benchmarks=$BENCHMARKS_GPU  # --save-timers
+  
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using Kokkos with unified memory for GPU (V100 or A100) on Ruche
+# _____________________________________________________________________________
+
+test_kokkos_unified_gpu:
+  # only: *default_run
+  rules:
+    # If not on the master branch and `src/kokkos` has been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/kokkos/*
+        - src/common/*
+        - src/setups/*
+        - src/main.cpp
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  # needs: [ test_kokkos_omp ]
+  before_script:
+    - source $WORKDIR/gitlab-ci_runs/env/kokkos_a100
+  #  - source $WORKDIR/gitlab-ci_runs/env/kokkos_v100
+  script:
+    - cp -r tests tests_kokkos_unified_gpu
+    - cd tests_kokkos_unified_gpu
+    - srun --nodes=1 --time=00:15:00 -p gpua100 --gres=gpu:1 --exclude=$EXCLUDED_GPUS python3 run.py -c g++ -g kokkos_unified_gpu --benchmarks=$BENCHMARKS_GPU  # --save-timers
+    # - srun --nodes=1 --time=00:15:00 -p gpu --gres=gpu:1 python3 run.py -c g++ -g kokkos_unified_gpu # --save-timers
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using NVidia Thrust for V100 GPU on Ruche
+# _____________________________________________________________________________
+
+test_thrust_gpu:
+  # only: *default_run
+  rules:
+    # If not on the master branch and `src/thrust` has been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/thrust/*
+        - src/common/*
+        - src/setups/*
+        - src/main.cpp
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  # needs: [ test_kokkos_omp ]
+  before_script:
+    #- source $WORKDIR/gitlab-ci_runs/env/kokkos_v100
+    - source $WORKDIR/gitlab-ci_runs/env/kokkos_a100
+  script:
+    - cp -r tests tests_thrust_gpu
+    - cd tests_thrust_gpu
+    #- srun --nodes=1 --time=00:10:00 -p gpu --gres=gpu:1 python3 run.py -g thrust # --save-timers
+    - srun --nodes=1 --time=00:10:00 -p gpua100 --exclude=$EXCLUDED_GPUS --gres=gpu:1 python3 run.py -g thrust_gpu --benchmarks=$BENCHMARKS_GPU
+    - cd ..
+    - cp -r tests tests_thrust_gpu_counting
+    - cd tests_thrust_gpu_counting
+    - srun --nodes=1 --time=00:10:00 -p gpua100 --exclude=$EXCLUDED_GPUS --gres=gpu:1 python3 run.py -g thrust_gpu --cmake-args="-DTHRUST_ITERATOR_TYPE=counting" --benchmarks=$BENCHMARKS_GPU
+    - cd ..
+    - cp -r tests tests_thrust_gpu_unified
+    - cd tests_thrust_gpu_unified
+    - srun --nodes=1 --time=00:10:00 -p gpua100 --exclude=$EXCLUDED_GPUS --gres=gpu:1 python3 run.py -g thrust_gpu --cmake-args="-DTHRUST_ITERATOR_TYPE=counting" --benchmarks=$BENCHMARKS_GPU --backend=thrust_unified
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using NVidia Thrust for V100 GPU on Ruche
+# _____________________________________________________________________________
+
+test_stdpar_gpu:
+  rules:
+    # If not on the master branch and `src/thrust` has been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/stdpar/*
+        - src/common/*
+        - src/setups/*
+        - src/main.cpp
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  before_script:
+    - source $WORKDIR/gitlab-ci_runs/env/stdpar_nvidia
+  script:
+    - cp -r tests tests_stdpar_nvidia_gpu
+    - cd tests_stdpar_nvidia_gpu
+    #- srun --nodes=1 --time=00:10:00 -p gpu --gres=gpu:1 python3 run.py -g stdpar_gpu # --save-timers
+    - srun --nodes=1 --time=00:10:00 -p gpua100 --exclude=$EXCLUDED_GPUS --gres=gpu:1 python3 run.py -g stdpar_gpu --benchmarks=$BENCHMARKS_GPU # --save-timers
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using OpenMP Task On Ruche Cascadelakes
+# _____________________________________________________________________________
+
+test_omp_task:
+  # only: *default_run
+  rules:
+    # If not on the master branch and related files have been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/openmp_task/*
+        - src/common/*
+        - src/main.cpp
+        - .gitlab-ci.yml
+        - src/setups/*
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    - if: $CI_COMMIT_MESSAGE =~ /\[run omp task\]/
+      when: always
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  before_script:
+    - source ${WORKDIR}/gitlab-ci_runs/env/openmp_task
+  script:
+    - cp -r tests tests_omp_task
+    - cd tests_omp_task
+    - srun --time=00:20:00 --cpus-per-task=8 --ntasks=1 --partition=cpu_short python3 run.py -c clang++ -g openmp_task --benchmarks=$BENCHMARKS_CPU
+    # --save-timers
+  # dependencies:
+  #   - build_kokkos_v100
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using SYCL for CPU on Ruche CascadeLakes
+# _____________________________________________________________________________
+
+#test_sycl:
+#  # only: *default_run
+#  rules:
+#    # If not on the master branch and `src/sycl` has been modified, run the CI
+#    - if: $CI_COMMIT_BRANCH != "master"
+#      changes:
+#        - src/sycl/*
+#        - .gitlab-ci.yml
+#        - tests/run.py
+#        - validation/*
+#        - src/common/*
+#        - src/main.cpp
+#        - src/setups/*
+#      when: always
+#    # If has `[run ci]` in the commit message, always run the CI
+#    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+#      when: always
+#    - if: $CI_COMMIT_MESSAGE =~ /\[run sycl\]/
+#      when: always
+#    # If on the master branch, always run the CI
+#    - if: $CI_COMMIT_BRANCH == "master"
+#      when: always
+#  tags:
+#    - ruche
+#  stage: test
+#  # needs: [ test_omp ]
+#  before_script:
+#    - source ${WORKDIR}/gitlab-ci_runs/env/sycl_cpu
+#  script:
+#    - cp -r tests tests_sycl
+#    - cd tests_sycl
+#    - srun --time=00:20:00 --cpus-per-task=8 --ntasks=1 --partition=cpu_short python3 run.py -c icpx -g sycl
+
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using SYCL for GPU on Ruche v100
+# _____________________________________________________________________________
+
+# test_sycl_gpu:
+#   # only: *default_run
+#   rules:
+#     # If not on the master branch and `src/sycl` has been modified, run the CI
+#     - if: $CI_COMMIT_BRANCH != "master"
+#       changes:
+#         - src/sycl/*
+#         - src/common/*
+#         - src/main.cpp
+#         - src/setups/*
+#         - .gitlab-ci.yml
+#         - tests/run.py
+#         - validation/*
+#       when: always
+#     # If has `[run ci]` in the commit message, always run the CI
+#     - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+#       when: always
+#     - if: $CI_COMMIT_MESSAGE =~ /\[run sycl\]/
+#       when: always
+#     # If on the master branch, always run the CI
+#     - if: $CI_COMMIT_BRANCH == "master"
+#       when: always
+#   tags:
+#     - ruche
+#   stage: test
+#   # needs: [ test_omp ]
+#   before_script:
+#     - source ${WORKDIR}/gitlab-ci_runs/env/sycl_gpu
+#   script:
+#     - cp -r tests tests_sycl_gpu
+#     - cd tests_sycl_gpu
+#     - srun --nodes=1 --time=00:15:00 -p gpu --gres=gpu:1 python3 run.py -c icpx -g sycl_gpu --compile-only # --save-timers
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using Eventify On Ruche Cascadelakes
+# _____________________________________________________________________________
+
+test_eventify:
+  # only: *default_run
+  rules:
+    # If not on the master branch and related files have been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/eventify/*
+        - src/common/*
+        - src/main_eventify.cpp
+        - src/setups/*
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    - if: $CI_COMMIT_MESSAGE =~ /\[run eventify\]/
+      when: always
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  before_script:
+    - source ${WORKDIR}/gitlab-ci_runs/env/eventify
+  script:
+    - cp -r tests eventify
+    - cd eventify
+    - srun --time=00:20:00 --cpus-per-task=8 --ntasks=1 --partition=cpu_short python3 run.py -c clang++ -g eventify --prefix "srun numactl --interleave=all" --benchmarks=$BENCHMARKS_CPU # --save-timers
+  # dependencies:
+  #   - build_kokkos_v100n e
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using OpenACC for V100 GPU on Ruche
+# _____________________________________________________________________________
+
+test_openacc_gpu:
+  # only: *default_run
+  rules:
+    # If not on the master branch and `src/thrust` has been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/openmp_target/*
+        - src/common/*
+        - src/setups/*
+        - src/main.cpp
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  # needs: [ test_kokkos_omp ]
+  before_script:
+    - source ${WORKDIR}/gitlab-ci_runs/env/openacc
+  script:
+    - cp -r tests tests_acc
+    - cd tests_acc
+    - srun --nodes=1 --time=00:10:00 -p gpua100 --exclude=$EXCLUDED_GPUS --gres=gpu:1 python3 run.py -g openacc --benchmarks=$BENCHMARKS_GPU # --save-timers
+    
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using OpenMP target for V100 GPU on Ruche
+# _____________________________________________________________________________
+
+test_openmp_target:
+  # only: *default_run
+  rules:
+    # If not on the master branch and `src/thrust` has been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/openmp_target/*
+        - src/common/*
+        - src/setups/*
+        - src/main.cpp
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  before_script:
+    - source ${WORKDIR}/gitlab-ci_runs/env/openacc
+  script:
+    - cp -r tests tests_omp_target
+    - cd tests_omp_target
+    - srun --nodes=1 --time=00:10:00 -p gpua100 --gres=gpu:1 --exclude=$EXCLUDED_GPUS python3 run.py -g openmp_target --compile-only # --save-timers
