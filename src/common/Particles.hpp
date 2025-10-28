@@ -34,7 +34,7 @@ public:
   T inv_cell_volume_m;
 
   //! Number of particles at init
-  int n_particles_m;
+  size_t n_particles_m;
 
   //! Species electric charge
   T charge_m;
@@ -76,63 +76,63 @@ public:
 
   //! \brief x accessor
   //! \param[in] ip particle index
-  INLINE T &x_h(unsigned int ip) { return x_.h(ip); }
+  INLINE T &x_h(size_t ip) { return x_.h(ip); }
 
   //! \brief y accessor
   //! \param[in] ip particle index
-  INLINE T &y_h(unsigned int ip) { return y_.h(ip); }
+  INLINE T &y_h(size_t ip) { return y_.h(ip); }
 
   //! \brief z accessor
   //! \param[in] ip particle index
-  INLINE T &z_h(unsigned int ip) { return z_.h(ip); }
+  INLINE T &z_h(size_t ip) { return z_.h(ip); }
 
   //! \brief mx accessor
   //! \param[in] ip particle index
-  INLINE T &mx_h(unsigned int ip) { return mx_.h(ip); }
+  INLINE T &mx_h(size_t ip) { return mx_.h(ip); }
 
   //! \brief my accessor
   //! \param[in] ip particle index
-  INLINE T &my_h(unsigned int ip) { return my_.h(ip); }
+  INLINE T &my_h(size_t ip) { return my_.h(ip); }
 
   //! \brief mz accessor
   //! \param[in] ip particle index
-  INLINE T &mz_h(unsigned int ip) { return mz_.h(ip); }
+  INLINE T &mz_h(size_t ip) { return mz_.h(ip); }
 
   //! \brief w accessor
   //! \param[in] ip particle index
-  INLINE T &w_h(unsigned int ip) { return weight_.h(ip); }
+  INLINE T &w_h(size_t ip) { return weight_.h(ip); }
 
   //! \brief gamma_inv accessor
   //! \param[in] ip particle index
-  // INLINE T &gamma_inv_h(unsigned int ip) { return gamma_inv_.h(ip); }
+  // INLINE T &gamma_inv_h(size_t ip) { return gamma_inv_.h(ip); }
 
   //! \brief Ex accessor
   //! \param[in] ip particle index
-  INLINE T &Ex_h(unsigned int ip) { return Ex_.h(ip); }
+  INLINE T &Ex_h(size_t ip) { return Ex_.h(ip); }
 
   //! \brief Ey accessor
   //! \param[in] ip particle index
-  INLINE T &Ey_h(unsigned int ip) { return Ey_.h(ip); }
+  INLINE T &Ey_h(size_t ip) { return Ey_.h(ip); }
 
   //! \brief Ez accessor
   //! \param[in] ip particle index
-  INLINE T &Ez_h(unsigned int ip) { return Ez_.h(ip); }
+  INLINE T &Ez_h(size_t ip) { return Ez_.h(ip); }
 
   //! \brief Bx accessor
   //! \param[in] ip particle index
-  INLINE T &Bx_h(unsigned int ip) { return Bx_.h(ip); }
+  INLINE T &Bx_h(size_t ip) { return Bx_.h(ip); }
 
   //! \brief By accessor
   //! \param[in] ip particle index
-  INLINE T &By_h(unsigned int ip) { return By_.h(ip); }
+  INLINE T &By_h(size_t ip) { return By_.h(ip); }
 
   //! \brief Bz accessor
   //! \param[in] ip particle index
-  INLINE T &Bz_h(unsigned int ip) { return Bz_.h(ip); }
+  INLINE T &Bz_h(size_t ip) { return Bz_.h(ip); }
 
   //! \brief Gamma accessor using the momentum
   //! \param[in] ip particle index
-  INLINE T gamma(unsigned int ip) {
+  INLINE T gamma(size_t ip) {
     return sqrt(1 + mx_.h(ip) * mx_.h(ip) + my_.h(ip) * my_.h(ip) + mz_.h(ip) * mz_.h(ip));
   }
 
@@ -140,7 +140,7 @@ public:
   //
   //! \brief Alloc memory for a new species
   // __________________________________________________________________________
-  void allocate(T q, T m, T t, int n_particles, T icv, Backend &backend) {
+  void allocate(T q, T m, T t, size_t n_particles, T icv, Backend &backend) {
     inv_cell_volume_m = icv;
 
     n_particles_m = n_particles;
@@ -175,7 +175,7 @@ public:
   //
   //! \brief Give the number of particles, use std::size
   // __________________________________________________________________________
-  unsigned int size() const { return n_particles_m; }
+  size_t size() const { return n_particles_m; }
 
   // __________________________________________________________________________
   //
@@ -214,14 +214,14 @@ public:
   //
   //! \brief Realloc memory to store particles
   // __________________________________________________________________________
-  template <class T_space> void resize(int n_particles, const T_space space) {
+  template <class T_space> void resize(size_t n_particles, const T_space space) {
 
     // We resize the vectors only if we can gain substantial memory
     // or need more space
     // A particle costs 112 octets
 
     // This corresponds to a gain of `min_threshold * 112` octets
-    const int min_threshold = 500000;
+    const size_t min_threshold = 500000;
 
     if (n_particles > n_particles_m || (n_particles_m - n_particles) > min_threshold) {
 
@@ -258,7 +258,7 @@ public:
   //! \brief Copy particle at index ip in object `particles` at index i of this
   //! \param[in] i index where to put the particles
   // __________________________________________________________________________
-  // void set(int i, Particles &particles, int ip) {
+  // void set(size_t i, Particles &particles, size_t ip) {
 
   //   x_h(i) = particles.x_h(ip);
   //   y_h(i) = particles.y_h(ip);
@@ -292,7 +292,7 @@ public:
   //! \param[in] my momentum of the particle to add
   //! \param[in] mz momentum of the particle to add
   // __________________________________________________________________________
-  void set(int i, T w, T x, T y, T z, T mx, T my, T mz) {
+  void set(size_t i, T w, T x, T y, T z, T mx, T my, T mz) {
 
     weight_[i] = w;
 
@@ -324,11 +324,11 @@ public:
   // void add(Particles &buffer) {
 
   //   if (buffer.size() > 0) {
-  //     int last_ip = size();
+  //     size_t last_ip = size();
 
   //     resize(last_ip + buffer.size(), minipic::host);
 
-  //     for (int ip = 0; ip < buffer.size(); ip++) {
+  //     for (size_t ip = 0; ip < buffer.size(); ip++) {
 
   //       x_h(last_ip) = buffer.x_h(ip);
   //       y_h(last_ip) = buffer.y_h(ip);
@@ -372,7 +372,7 @@ public:
   // __________________________________________________________________________
   // void add(T w, T x, T y, T z, T px, T py, T pz) {
 
-  //   int last_ip = size();
+  //   size_t last_ip = size();
 
   //   resize(last_ip + 1, minipic::host);
 
@@ -397,7 +397,92 @@ public:
   //   }
   // }
 
+  // __________________________________________________________________________
+  //
+  //! \brief Erase particles tagged via the mask array (when >= 0)
+  //! \param[in] int * mask - array of int used as  a mask (should have the same size as the number
+  //! of particles)
+  // ________________________________________________________________
+  //   void erase(Vector<int> &masks) {
 
+  // #if defined(__MINIPIC_KOKKOS__)
+
+  //     device_vector_t w = weight_.data_.d_view;
+
+  //     device_vector_t x = x_.data_.d_view;
+  //     device_vector_t y = y_.data_.d_view;
+  //     device_vector_t z = z_.data_.d_view;
+
+  //     device_vector_t mx = mx_.data_.d_view;
+  //     device_vector_t my = my_.data_.d_view;
+  //     device_vector_t mz = mz_.data_.d_view;
+
+  //     // device_vector_t gamma_inv = gamma_inv_.data_.d_view;
+
+  //     Kokkos::DualView<int *>::t_dev masks_accessor = masks.data_.d_view;
+
+  //     // Kokkos::parallel_for( 1, KOKKOS_LAMBDA ( const int i) {
+
+  // #else
+
+  //     device_vector_t &w = weight_;
+
+  //     device_vector_t &x = x_;
+  //     device_vector_t &y = y_;
+  //     device_vector_t &z = z_;
+
+  //     device_vector_t &mx = mx_;
+  //     device_vector_t &my = my_;
+  //     device_vector_t &mz = mz_;
+
+  //     // device_vector_t &gamma_inv = gamma_inv_;
+
+  //     Vector<int> &masks_accessor = masks;
+
+  // #endif
+
+  //     // front particle index
+  //     int ip = 0;
+
+  //     // last particle index
+  //     int last_ip = size() - 1;
+
+  //     while (ip <= last_ip) {
+
+  //       // back particle left
+  //       if (masks[last_ip] >= 0) {
+  //         last_ip--;
+  //         continue;
+  //       }
+
+  //       // front particle left
+  //       if (masks[ip] >= 0) {
+  //         // Copy particle last_ip at ip index
+
+  //         x(ip) = x(last_ip);
+  //         y(ip) = y(last_ip);
+  //         z(ip) = z(last_ip);
+
+  //         mx(ip) = mx(last_ip);
+  //         my(ip) = my(last_ip);
+  //         mz(ip) = mz(last_ip);
+
+  //         w(ip) = w(last_ip);
+
+  //         // if (with_gamma_) {
+  //         //   gamma_inv(ip) = gamma_inv(last_ip);
+  //         // }
+
+  //         last_ip--;
+  //         ip++;
+  //         // else front particle stay, check next one
+  //       } else {
+  //         ip++;
+  //       }
+  //     }
+
+  //     resize(last_ip + 1, minipic::host);
+  //   }
 
   // __________________________________________________________________________
   //
@@ -407,7 +492,172 @@ public:
 
     T kinetic_energy = 0;
 
+#ifdef __MINIPIC_KOKKOS_COMMON__
+
+    if constexpr (std::is_same<T_space, minipic::Device>::value) {
+
+#if defined(__MINIPIC_KOKKOS_DUALVIEW_COMMON__)
+
+      device_vector_t w  = weight_.data_.d_view;
+      device_vector_t mx = mx_.data_.d_view;
+      device_vector_t my = my_.data_.d_view;
+      device_vector_t mz = mz_.data_.d_view;
+
+#elif defined(__MINIPIC_KOKKOS_UNIFIED__)
+
+      device_vector_t w  = weight_.data_;
+      device_vector_t mx = mx_.data_;
+      device_vector_t my = my_.data_;
+      device_vector_t mz = mz_.data_;
+
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+
+      device_vector_t w  = weight_.data_;
+      device_vector_t mx = mx_.data_;
+      device_vector_t my = my_.data_;
+      device_vector_t mz = mz_.data_;
+
+#endif
+
+      Kokkos::parallel_reduce(
+        "kinetic_energy_on_device",
+        n_particles_m,
+        KOKKOS_LAMBDA(const size_t ip, T &lsum) {
+          const T gamma = sqrt(1. + mx(ip) * mx(ip) + my(ip) * my(ip) + mz(ip) * mz(ip));
+          lsum += w(ip) * (gamma - 1.);
+        },
+        kinetic_energy);
+
+      Kokkos::fence();
+
+    } else {
+
+      kinetic_energy = get_kinetic_energy_on_host();
+    }
+
+#elif defined(__MINIPIC_THRUST_COMMON__)
+
+    if constexpr (std::is_same<T_space, minipic::Device>::value) {
+
+      T *w  = weight_.get_raw_pointer(minipic::device);
+      T *mx = mx_.get_raw_pointer(minipic::device);
+      T *my = my_.get_raw_pointer(minipic::device);
+      T *mz = mz_.get_raw_pointer(minipic::device);
+
+      kinetic_energy = thrust::transform_reduce(
+        thrust::make_counting_iterator<size_t>(0),
+        thrust::make_counting_iterator<size_t>(n_particles_m),
+        [=] __host__ __device__(size_t ip) {
+          const T gamma = sqrt(1. + mx[ip] * mx[ip] + my[ip] * my[ip] + mz[ip] * mz[ip]);
+          return w[ip] * (gamma - 1.);
+        },
+        0.,
+        thrust::plus<T>());
+
+    } else {
+      kinetic_energy = get_kinetic_energy_on_host();
+    }
+
+#elif defined(__MINIPIC_OMP_TARGET__)
+
+    if constexpr (std::is_same<T_space, minipic::Device>::value) {
+
+      T *w  = weight_.get_raw_pointer(minipic::host);
+      T *mx = mx_.get_raw_pointer(minipic::host);
+      T *my = my_.get_raw_pointer(minipic::host);
+      T *mz = mz_.get_raw_pointer(minipic::host);
+
+#pragma omp target teams distribute parallel for reduction(+ : kinetic_energy)
+      for (auto ip = 0; ip < size(); ++ip) {
+        const T gamma = sqrt(1. + mx[ip] * mx[ip] + my[ip] * my[ip] + mz[ip] * mz[ip]);
+        kinetic_energy += w[ip] * (gamma - 1.);
+      }
+
+    } else {
+      kinetic_energy = get_kinetic_energy_on_host();
+    }
+
+#elif defined(__MINIPIC_OPENACC__)
+
+    if constexpr (std::is_same<T_space, minipic::Device>::value) {
+
+      T *w  = weight_.get_raw_pointer(minipic::host);
+      T *mx = mx_.get_raw_pointer(minipic::host);
+      T *my = my_.get_raw_pointer(minipic::host);
+      T *mz = mz_.get_raw_pointer(minipic::host);
+
+#pragma acc parallel present(mx, my, mz, w)
+#pragma acc loop reduction(+ : kinetic_energy)
+      for (auto ip = 0; ip < size(); ++ip) {
+        const T gamma = sqrt(1. + mx[ip] * mx[ip] + my[ip] * my[ip] + mz[ip] * mz[ip]);
+        kinetic_energy += w[ip] * (gamma - 1.);
+      }
+
+    } else {
+      kinetic_energy = get_kinetic_energy_on_host();
+    }
+
+#elif defined(__MINIPIC_SYCL__)
+
+    if constexpr (std::is_same<T_space, minipic::Device>::value) {
+
+      sycl::queue *const sycl_queue_ptr = weight_.sycl_queue_ptr;
+
+      T *const w  = weight_.get_raw_pointer(minipic::device);
+      T *const mx = mx_.get_raw_pointer(minipic::device);
+      T *const my = my_.get_raw_pointer(minipic::device);
+      T *const mz = mz_.get_raw_pointer(minipic::device);
+
+      sycl::buffer<T, 1> sum_buffer(&kinetic_energy, 1);
+
+      sycl_queue_ptr->submit([&](sycl::handler &cgh) {
+        sycl::accessor sum_acc{sum_buffer, cgh, sycl::write_only};
+
+        cgh.parallel_for(sycl::range<1>{n_particles_m},
+                         sycl::reduction(sum_buffer,
+                                         cgh,
+                                         std::plus<T>(),
+                                         sycl::property::reduction::initialize_to_identity{}),
+                         [=](sycl::id<1> ip, auto &sum_acc) {
+                           const T gamma =
+                             sqrt(1. + mx[ip] * mx[ip] + my[ip] * my[ip] + mz[ip] * mz[ip]);
+                           sum_acc += w[ip] * (gamma - 1.);
+                         });
+      });
+
+      sycl::host_accessor result{sum_buffer, sycl::read_only};
+      kinetic_energy = result[0];
+
+    } else {
+
+      kinetic_energy = get_kinetic_energy_on_host();
+    }
+#elif defined(__MINIPIC_STDPAR__)
+    if constexpr (std::is_same<T_space, minipic::Device>::value) {
+      T *w  = weight_.get_raw_pointer(minipic::device);
+      T *mx = mx_.get_raw_pointer(minipic::device);
+      T *my = my_.get_raw_pointer(minipic::device);
+      T *mz = mz_.get_raw_pointer(minipic::device);
+
+      kinetic_energy =
+        std::transform_reduce(std::execution::par_unseq,
+                              counting_iterator<size_t>(0),
+                              counting_iterator<size_t>(n_particles_m),
+                              0.0,
+                              std::plus<T>(),
+                              [=](size_t ip) {
+                                const T gamma =
+                                  sqrt(1.0 + mx[ip] * mx[ip] + my[ip] * my[ip] + mz[ip] * mz[ip]);
+                                return w[ip] * (gamma - 1.0);
+                              });
+    } else {
+      kinetic_energy = get_kinetic_energy_on_host();
+    }
+#else
+
     kinetic_energy = get_kinetic_energy_on_host();
+
+#endif
 
     return kinetic_energy * mass_m;
   }
@@ -444,7 +694,7 @@ public:
   //! \brief Print all particles properties
   // __________________________________________________________________________
   void print() {
-    for (int ip = 0; ip < n_particles_m; ++ip) {
+    for (size_t ip = 0; ip < n_particles_m; ++ip) {
       std::cerr << "" << ip << " - " << x_h(ip) << " " << y_h(ip) << " " << z_h(ip)
                 << " mx: " << mx_h(ip) << " my: " << my_h(ip) << " mz: " << mz_h(ip) << std::endl;
     }
@@ -456,7 +706,7 @@ public:
   // __________________________________________________________________________
   void check(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax) {
 
-    for (int ip = 0; ip < n_particles_m; ++ip) {
+    for (size_t ip = 0; ip < n_particles_m; ++ip) {
 
       if ((x_h(ip) <= xmin) || (x_h(ip) >= xmax) || (y_h(ip) <= ymin) || (y_h(ip) >= ymax) ||
           (z_h(ip) <= zmin) || (z_h(ip) >= zmax)) {
@@ -493,7 +743,7 @@ public:
     T By_sum = 0;
     T Bz_sum = 0;
 
-    for (int ip = 0; ip < n_particles_m; ++ip) {
+    for (size_t ip = 0; ip < n_particles_m; ++ip) {
 
       x_sum += std::abs(x_h(ip));
       y_sum += std::abs(y_h(ip));
@@ -531,7 +781,7 @@ private:
   T get_kinetic_energy_on_host() {
     T kinetic_energy = 0;
 
-    for (auto ip = 0; ip < size(); ++ip) {
+    for (size_t ip = 0; ip < size(); ++ip) {
       const T gamma = sqrt(1. + mx_h(ip) * mx_h(ip) + my_h(ip) * my_h(ip) + mz_h(ip) * mz_h(ip));
       kinetic_energy += w_h(ip) * (gamma - 1.);
     }

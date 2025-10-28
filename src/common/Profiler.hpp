@@ -43,7 +43,7 @@ class Profiler {
 
 private:
   //! thread_id_ is the id of the thread
-  int number_of_threads_;
+  [[maybe_unused]] int number_of_threads_;
 
   //! events_ is a vector of Event
   //! Each event is stored in the order of its occurrence
@@ -70,7 +70,7 @@ public:
   }
 
   //! Destructor
-  ~Profiler(){};
+  ~Profiler() {};
 
   //! Start to time the occurrence of code `occurrence_code`
   //! Store the time in seconds since the epoch

@@ -44,9 +44,9 @@ void setup(Params &params) {
   const double dz = (params.sup_z - params.inf_z) / nz_cells;
 
   // Number of patches
-  //params.nx_patch = 16;
-  //params.ny_patch = 16;
-  //params.nz_patch = 16;
+  // params.nx_patch = 16;
+  // params.ny_patch = 16;
+  // params.nz_patch = 16;
 
   params.nx_patch = 16;
   params.ny_patch = 16;
@@ -86,7 +86,7 @@ void setup(Params &params) {
   params.momentum_correction = false;
 
   // Bourndary conditions
-  params.boundary_condition = "periodic";
+  params.boundary_condition     = "periodic";
   params.no_diagnostics_at_init = true;
 
   // Display
@@ -148,7 +148,7 @@ void setup(Params &params) {
     double res = 0;
 
     double r = (x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5) + (z - 0.5) * (z - 0.5);
-    res = E0 * std::exp(-r / 0.1);
+    res      = E0 * std::exp(-r / 0.1);
     // Derivative of a E field of the form E0 * exp(-alpha * t^2) * cos(beta * t)
 
     return res;

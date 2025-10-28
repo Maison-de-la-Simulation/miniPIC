@@ -249,8 +249,8 @@ void particle_binning(std::string diag_name,
       }
 
       for (int i_patch = 0; i_patch < patches.size(); ++i_patch) {
-        const unsigned int n_particles = patches[i_patch].particles_m[is].size();
-        for (unsigned int ip = 0; ip < n_particles; ip++) {
+        const size_t n_particles = patches[i_patch].particles_m[is].size();
+        for (size_t ip = 0; ip < n_particles; ip++) {
 
           mini_float value;
 
@@ -300,10 +300,10 @@ void particle_binning(std::string diag_name,
   for (int i_patch = 0; i_patch < patches.size(); ++i_patch) {
 
     // get number of particles to project in the current patch
-    const unsigned int n_particles = patches[i_patch].particles_m[is].size();
+    const size_t n_particles = patches[i_patch].particles_m[is].size();
 
     // Compute data
-    for (int ip = 0; ip < n_particles; ip++) {
+    for (size_t ip = 0; ip < n_particles; ip++) {
 
       mini_float value[3];
       bool inside_diag_data = true;
@@ -435,7 +435,7 @@ void fields(Params &params, ElectroMagn &em, unsigned int it, std::string format
 
   for (auto ifield = 0; ifield < field_list.size(); ++ifield) {
 
-#if defined(__SHAMAN__)
+#if defined(__MINIPIC_KOKKOS_COMMON__) || defined(__SHAMAN__)
     const int nx = field_list[ifield]->nx();
     const int ny = field_list[ifield]->ny();
     const int nz = field_list[ifield]->nz();
@@ -484,7 +484,7 @@ void fields(Params &params, ElectroMagn &em, unsigned int it, std::string format
         tmp_grid);
     }
 
-#if defined(__SHAMAN__)
+#if defined(__MINIPIC_KOKKOS_COMMON__) || defined(__SHAMAN__)
 
     delete[] tmp_grid;
 
@@ -512,7 +512,7 @@ void particle_cloud(std::string diag_name,
                     int it,
                     std::string format = "binary") {
 
-  unsigned int number_of_particles = 0;
+  size_t number_of_particles = 0;
   for (int i_patch = 0; i_patch < patches.size(); i_patch++) {
     number_of_particles += patches[i_patch].particles_m[is].size();
   }
@@ -543,8 +543,8 @@ void particle_cloud(std::string diag_name,
     }
 
     for (int i_patch = 0; i_patch < patches.size(); i_patch++) {
-      const unsigned int n_particles = patches[i_patch].particles_m[is].size();
-      for (int ip = 0; ip < n_particles; ++ip) {
+      const size_t n_particles = patches[i_patch].particles_m[is].size();
+      for (size_t ip = 0; ip < n_particles; ++ip) {
 
         binary_file.write((char *)(&patches[i_patch].particles_m[is].w_h(ip)), sizeof(double));
 
@@ -557,7 +557,7 @@ void particle_cloud(std::string diag_name,
         binary_file.write((char *)(&patches[i_patch].particles_m[is].mz_h(ip)), sizeof(double));
 
       } // End particle loop
-    }   // End patch loop
+    } // End patch loop
 
     // Cleaning
     binary_file.close();
@@ -588,15 +588,15 @@ void particle_cloud(std::string diag_name,
     vtk_file << "POINTS " << number_of_particles << " float" << std::endl;
 
     for (auto i_patch = 0; i_patch < patches.size(); ++i_patch) {
-      const unsigned int n_particles = patches[i_patch].particles_m[is].size();
-      for (auto ip = 0; ip < patches[i_patch].particles_m[is].size(); ++ip) {
+      const size_t n_particles = patches[i_patch].particles_m[is].size();
+      for (size_t ip = 0; ip < n_particles; ++ip) {
 
         vtk_file << patches[i_patch].particles_m[is].z_h(ip) << " "
                  << patches[i_patch].particles_m[is].y_h(ip) << " "
                  << patches[i_patch].particles_m[is].x_h(ip) << std::endl;
 
       } // End particle loop
-    }   // End patch loop
+    } // End patch loop
 
     // Construction of the weight
     vtk_file << std::endl;
@@ -605,12 +605,12 @@ void particle_cloud(std::string diag_name,
     vtk_file << "LOOKUP_TABLE default" << std::endl;
 
     for (int i_patch = 0; i_patch < patches.size(); i_patch++) {
-      for (int ip = 0; ip < patches[i_patch].particles_m[is].size(); ++ip) {
+      for (size_t ip = 0; ip < patches[i_patch].particles_m[is].size(); ++ip) {
 
         vtk_file << patches[i_patch].particles_m[is].w_h(ip) << " ";
 
       } // End particle loop
-    }   // End patch loop
+    } // End patch loop
 
     vtk_file << std::endl;
 
@@ -620,7 +620,7 @@ void particle_cloud(std::string diag_name,
     vtk_file << "LOOKUP_TABLE default" << std::endl;
     for (int i_patch = 0; i_patch < patches.size(); i_patch++) {
 
-      for (int ip = 0; ip < patches[i_patch].particles_m[is].size(); ++ip) {
+      for (size_t ip = 0; ip < patches[i_patch].particles_m[is].size(); ++ip) {
 
         const mini_float gamma =
           1 /
@@ -639,7 +639,7 @@ void particle_cloud(std::string diag_name,
     vtk_file << std::endl;
     vtk_file << "VECTORS momentum float" << std::endl;
     for (int i_patch = 0; i_patch < patches.size(); i_patch++) {
-      for (int ip = 0; ip < patches[i_patch].particles_m[is].size(); ++ip) {
+      for (size_t ip = 0; ip < patches[i_patch].particles_m[is].size(); ++ip) {
         vtk_file << patches[i_patch].particles_m[is].mx_h(ip) << " ";
         vtk_file << patches[i_patch].particles_m[is].my_h(ip) << " ";
         vtk_file << patches[i_patch].particles_m[is].mz_h(ip) << " ";
@@ -671,10 +671,10 @@ void scalars(Params &params, std::vector<Patch> &patches, unsigned int is, unsig
 
   // Particle scalars _________________________________________
 
-  unsigned int number_of_particles  = 0;
+  size_t number_of_particles  = 0;
   mini_float species_kinetic_energy = 0;
 
-  for (unsigned int i_patch = 0; i_patch < patches.size(); ++i_patch) {
+  for (size_t i_patch = 0; i_patch < patches.size(); ++i_patch) {
 
     species_kinetic_energy += patches[i_patch].particles_m[is].get_kinetic_energy(minipic::device);
 
@@ -734,6 +734,24 @@ void scalars(Params &params, std::vector<Patch> &patches, unsigned int is, unsig
 void scalars(Params &params, ElectroMagn &em, unsigned int it) {
 
   // compute Field scalars _________________________________________
+
+  // em.Ex_m.sync(minipic::device, minipic::host);
+
+  // #if defined(__MINIPIC_SYCL__)
+
+  //   mini_float Ex_energy = 0.5 * em.Ex_m.sum(2,minipic::host) * params.cell_volume;
+  //   mini_float Ey_energy = 0.5 * em.Ey_m.sum(2,minipic::host) * params.cell_volume;
+  //   mini_float Ez_energy = 0.5 * em.Ez_m.sum(2,minipic::host) * params.cell_volume;
+
+  //   mini_float Bx_energy = 0.5 * em.Bx_m.sum(2,minipic::host) * params.cell_volume;
+  //   mini_float By_energy = 0.5 * em.By_m.sum(2,minipic::host) * params.cell_volume;
+  //   mini_float Bz_energy = 0.5 * em.Bz_m.sum(2,minipic::host) * params.cell_volume;
+
+  //   mini_float Jx_energy = 0.5 * em.Jx_m.sum(2,minipic::host) * params.cell_volume;
+  //   mini_float Jy_energy = 0.5 * em.Jy_m.sum(2,minipic::host) * params.cell_volume;
+  //   mini_float Jz_energy = 0.5 * em.Jz_m.sum(2,minipic::host) * params.cell_volume;
+
+  // #else
 
   mini_float Ex_energy = 0.5 * em.Ex_m.sum(2, minipic::device) * params.cell_volume;
   mini_float Ey_energy = 0.5 * em.Ey_m.sum(2, minipic::device) * params.cell_volume;

@@ -56,6 +56,7 @@ int main(int argc, char *argv[]) {
         std::cout << "   - size: " << field.size() << " " << nx*ny*nz << std::endl;
 
         assert(field.size() == nx*ny*nz);
+        std::cout << std::endl;
 
         // _________________________________________________________________________
         // Test fill method
@@ -71,96 +72,19 @@ int main(int argc, char *argv[]) {
 
         assert(field.sum(2,minipic::device) == nx*ny*nz*4.0);
         assert(field.sum(2,minipic::host) == nx*ny*nz*4.0);
-
+        std::cout << std::endl;
+        
         // _________________________________________________________________________
         // Kernel on host
 
         std::cout << " > Test kernel on host" << std::endl;
-
-#if defined (__MINIPIC_KOKKOS__)
-
-        field.reset(minipic::host);
-
-        field_t host_view = field.data_m.h_view;
-
-        typedef Kokkos::MDRangePolicy<Kokkos::DefaultHostExecutionSpace, Kokkos::Rank<3>> host_mdrange_policy;
-        Kokkos::parallel_for(
-        host_mdrange_policy({0, 0, 0},
-                        {field.nx(), field.ny(), field.nz()}),
-        KOKKOS_LAMBDA(const int ix, const int iy, const int iz) {
-            host_view(ix, iy, iz) = ix - iy + iz;
-        });
-
-#elif defined (__MINIPIC_KOKKOS_UNIFIED__)
-
-        field.reset(minipic::host);
-
-        field_t host_view = field.data_m;
-
-        typedef Kokkos::MDRangePolicy<Kokkos::DefaultHostExecutionSpace, Kokkos::Rank<3>> host_mdrange_policy;
-
-        Kokkos::parallel_for(
-        host_mdrange_policy({0, 0, 0},
-                        {field.nx(), field.ny(), field.nz()}),
-        KOKKOS_LAMBDA(const int ix, const int iy, const int iz) {
-            host_view(ix, iy, iz) = ix - iy + iz;
-        });
-
-#elif defined(__MINIPIC_SYCL__)
-
-        field.reset(minipic::host);
-
-        double * host_data = field.host_data_;
-
-        for (auto ix = 0; ix < nx; ++ix) {
-            for (auto iy = 0; iy < ny; ++iy) {
-                for (auto iz = 0; iz < nz; ++iz) {
-                    auto index = ix*ny*nz + iy*nz + iz;
-                    host_data[index] = ix - iy + iz;
-                }
-            }
-        }
-
-        // backend.sycl_queue_->submit([&](sycl::handler& cgh) {
-        // cgh.parallel_for(sycl::range<3>(nx,ny,nz), [=](sycl::id<3> idx) {
-        //     int ix = idx[0];
-        //     int iy = idx[1];
-        //     int iz = idx[2];
-        //     int index = ix*ny*nz + iy*nz + iz;
-        //     device_data[index] = index*index;
-        // });
-        // });
-        // backend.sycl_queue_->wait();
-
-#elif defined(__MINIPIC_OPENACC__)
-
-        for (int ix = 0; ix < nx; ix++) {
-            for (int iy = 0; iy < ny; iy++) {
-                for (int iz = 0; iz < nz; iz++) {
-                    field(ix,iy,iz) = ix - iy + iz;
-                }
-            }
-        }
-
-#elif defined(__MINIPIC_STDPAR__)
-
-        mini_float *const ptrv1 = field.get_raw_pointer(minipic::host);
-        for (int ix = 0; ix < nx; ix++) {
-            for (int iy = 0; iy < ny; iy++) {
-                for (int iz = 0; iz < nz; iz++) {
-                    auto index = ix*ny*nz + iy*nz + iz;
-                    ptrv1[index] = ix - iy + iz;
-                }
-            }
-        }
-
-#endif
 
         mini_float expected_sum = 0;
         for (int ix = 0; ix < nx; ix++) {
             for (int iy = 0; iy < ny; iy++) {
                 for (int iz = 0; iz < nz; iz++) {
                     expected_sum += pow(ix - iy + iz,2);
+                    field(ix,iy,iz) = ix - iy + iz;
                 }
             }
         }
@@ -173,102 +97,40 @@ int main(int argc, char *argv[]) {
                 << std::endl;
 
         assert( error_host < 1e-12);
+        std::cout << std::endl;
+
+        auto field_device_sum=0.0;
 
         // _________________________________________________________________________
         // test host->device transfers
+        std::cout << " > Test host->device transfers " << std::endl;
+        #if defined (__MINIPIC_CUDA__)
+        std::cout << " > Test reset on device " << std::endl;
+        field.reset(minipic::device);
+        field_device_sum = field.sum(1,minipic::device);
+        std::cout << std::setprecision(15) << "   - sum on device before sync: " << field_device_sum << " ( expected : 0 )" << std::endl;
 
-        std::cout << " > Test host->device transfers" << std::endl;
+        #endif
 
         field.sync(minipic::host, minipic::device);
-
-        auto field_device_sum = field.sum(2,minipic::device);
-
+        field_device_sum = field.sum(2,minipic::device);
         auto error_device = std::abs(field_device_sum - expected_sum) / expected_sum;
-
-        std::cout << std::setprecision(15) << "   - sum on device: " << field_device_sum << " with error: " << error_device << std::endl;
+        std::cout << std::setprecision(15) << "   - sum on device after sync : " << field_device_sum << " with error: " << error_device << std::endl;
 
         assert( error_device < 1e-12);
+        std::cout << std::endl;
+
 
         // _________________________________________________________________________
         // Kernel on device
-
-        std::cout << " > Test kernel on device" << std::endl;
-
-#if defined (__MINIPIC_KOKKOS__)
-
-        field.reset(minipic::device);
-
-        device_field_t view = field.data_m.d_view;
-
-        typedef Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>> mdrange_policy;
-        Kokkos::parallel_for(
-        mdrange_policy({0, 0, 0},
-                        {field.nx(), field.ny(), field.nz()}),
-        KOKKOS_LAMBDA(const int ix, const int iy, const int iz) {
-            view(ix, iy, iz) = ix + iy + iz;
-        });
-
-#elif defined (__MINIPIC_KOKKOS_UNIFIED__)
-
-        field.reset(minipic::device);
-
-        device_field_t view = field.data_m;
-
-        typedef Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>> mdrange_policy;
-        Kokkos::parallel_for(
-        mdrange_policy({0, 0, 0},
-                        {field.nx(), field.ny(), field.nz()}),
-        KOKKOS_LAMBDA(const int ix, const int iy, const int iz) {
-            view(ix, iy, iz) = ix + iy + iz;
-        });
-
-#elif defined(__MINIPIC_SYCL__)
-
-        field.reset(minipic::device);
-
-        double * device_data = field.device_data_;
-
-        backend.sycl_queue_->submit([&](sycl::handler& cgh) {
-        cgh.parallel_for(sycl::range<3>(nx,ny,nz), [=](sycl::id<3> idx) {
-            int ix = idx[0];
-            int iy = idx[1];
-            int iz = idx[2];
-            int index = ix*ny*nz + iy*nz + iz;
-            device_data[index] = ix + iy + iz;
-        });
-        });
-        backend.sycl_queue_->wait();
-
-#elif defined(__MINIPIC_OPENACC__)
-
-        #pragma acc parallel present(field)
-        #pragma acc loop gang worker vector collapse(3)
-        for (int ix = 0; ix < nx; ix++) {
-            for (int iy = 0; iy < ny; iy++) {
-                for (int iz = 0; iz < nz; iz++) {
-                    field(ix,iy,iz) = ix + iy + iz;
-                }
-            }
-        }
-#elif defined(__MINIPIC_STDPAR__)
-
-        mini_float *const ptrv1 = field.get_raw_pointer(minipic::device);
-        std::for_each_n(std::execution::par_unseq, counting_iterator(0), size, [=](int i) 
-        {
-            int ix       = i/ nynz;
-            int iy       = (i - ix * nynz) / nz;
-            const int iz = i - ix * nynz - iy * nz;
-            ptrv1[i]=ix+iy+iz; });
-
-
-#endif
+       std::cout << " > Test kernel on device" << std::endl;
 
         // get the right sum
         expected_sum = 0;
         for (int ix = 0; ix < nx; ix++) {
             for (int iy = 0; iy < ny; iy++) {
                 for (int iz = 0; iz < nz; iz++) {
-                    expected_sum += pow(ix + iy + iz,2);
+                    expected_sum += pow(ix - iy + iz,2);
                 }
             }
         }
@@ -279,25 +141,38 @@ int main(int argc, char *argv[]) {
                 << std::endl;
 
         assert(device_sum == expected_sum);
+        std::cout << std::endl;
 
         // _________________________________________________________________________
         // Device to host transfer
+        std::cout << " > Test device->host transfers " << std::endl;  
 
-        std::cout << " > Test device->host transfers" << std::endl;        
-
-#if defined(__MINIPIC_STDPAR__) || defined(__MINIPIC_KOKKOS_UNIFIED__)
-
-#else
+        #if defined (__MINIPIC_CUDA__)
+        std::cout << " > Test reset on host " << std::endl;
         field.reset(minipic::host);
-#endif
+        field_host_sum = field.sum(1,minipic::host);
+        std::cout << std::setprecision(15) << "   - sum on host before sync : " << field_host_sum << " ( expected : 0 )" << std::endl;
+        #endif
+
         field.sync(minipic::device, minipic::host);
-
         mini_float host_sum = field.sum(2,minipic::host);
-
         std::cout << "   - sum on host: " << host_sum << "  - expected: " << expected_sum
                 << std::endl;
-
         assert(host_sum == expected_sum);
+        std::cout << std::endl;
+        
+        #if !defined(__MINIPIC_CUDA__)
+        std::cout << " > Test reset on host and device " << std::endl;
+        field.reset(minipic::host);
+        field.reset(minipic::device);
+        
+        field_host_sum = field.sum(1,minipic::host);
+        field_device_sum = field.sum(1,minipic::device);
+
+        std::cout << std::setprecision(15) << "   - sum on host after reset : " << field_host_sum << " ( expected : 0 )" << std::endl;
+        std::cout << std::setprecision(15) << "   - sum on device after reset : " << field_device_sum << " ( expected : 0 )" << std::endl;
+        #endif
+
 
         // delete [] data;
         // delete &field;
@@ -306,7 +181,7 @@ int main(int argc, char *argv[]) {
 
     // _________________________________________________________________________
     // Destructor
-
+    std::cout << std::endl;
     std::cout << " > Test destructor" << std::endl;
 
     backend.finalize();

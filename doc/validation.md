@@ -37,9 +37,17 @@ Here is a list of possible configurations:
 | --- | --- | --- | --- | --- |
 | sequential | | | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="sequential"` | |
 | openmp | OpenMP for version (for CPU) |  | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="openmp"` | `OMP_PROC_BIND=spread` |
+| kokkos | CPU benchmarks | | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos"` | `OMP_PROC_BIND=spread` |
+| kokkos_gpu | GPU benchmarks | | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos"` | |
+| thrust | | nvhpc | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="thrust" -DDEVICE="nvidia_v100"` | |
 | openmp_task || | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="openmp_task"` | `OMP_PROC_BIND=spread OMP_MAX_ACTIVE_LEVELS=10` |
+| openmp_target || | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="openmp_target"` | `OMP_PROC_BIND=spread OMP_MAX_ACTIVE_LEVELS=10` |
+| openacc | | nvhpc | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="openacc" -DDEVICE="nvidia_v100"` | |
 | eventify || | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="eventify"` | `KMP_AFFINITY=` |
-
+| thrust_a100 || | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="thrust" -DDEVICE="nvidia_a100"` | |
+| sycl | | icpx | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="sycl"` | |
+| sycl_gpu | | icpx | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="sycl" -DDEVICE="nvidia_v100"` | |
+| acpp || | `-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="acpp" -DDEVICE="cpu_x86"` | |
 
 ### Usage examples:
 
@@ -52,7 +60,7 @@ python run.py
 - specific configuration
 
 ```bash
-python run.py -g eventify
+python run.py -g kokkos
 ```
 
 - custom compiler

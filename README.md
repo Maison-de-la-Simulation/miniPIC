@@ -15,8 +15,8 @@ miniPIC is a playground for computer science and HPC experiments applied to the 
     <tr>
         <th></th>
         <th style="background-color: #CDD8E0; color: black">Internal Backend</th>
-        <th style="background-color: #CDD8E0; color: black">CPU Intel</th>
-        <th style="background-color: #CDD8E0; color: black">CPU AMD</th>
+        <th style="background-color: #CDD8E0; color: black">Intel CPU</th>
+        <th style="background-color: #CDD8E0; color: black">AMD CPU</th>
         <th style="background-color: #CDD8E0; color: black">ARM based CPU</th>
     </tr>
     <tr>
@@ -54,6 +54,13 @@ miniPIC is a playground for computer science and HPC experiments applied to the 
         <td style="background-color: #B1E0CB"></td>
         <td style="background-color: #E0B4B2">Not tested</td>
     </tr>
+    <tr>
+        <td>STDPAR</td>
+        <td></td>
+        <td style="background-color: #B1E0CB"></td>
+        <td style="background-color: #E0B4B2">Not tested</td>
+        <td style="background-color: #B1E0CB"></td>
+    </tr>
 </table>
 
 ### GPU backends
@@ -62,15 +69,15 @@ miniPIC is a playground for computer science and HPC experiments applied to the 
     <tr>
         <th></th>
         <th style="background-color: #CDD8E0; color: black">Internal Backend</th>
-        <th style="background-color: #CDD8E0; color: black">GPU NVIDIA</th>
-        <th style="background-color: #CDD8E0; color: black">GPU AMD</th>
-        <th style="background-color: #CDD8E0; color: black">GPU Intel</th>
+        <th style="background-color: #CDD8E0; color: black">NVIDIA GPU</th>
+        <th style="background-color: #CDD8E0; color: black">AMD GPU</th>
+        <th style="background-color: #CDD8E0; color: black">Intel GPU</th>
     </tr>
     <tr>
         <td>Kokkos</td>
         <td>CUDA, HIP, SYCL</td>
-        <td style="background-color: #B1E0CB">CUDA 11 (tested on V100, A100)</td>
-        <td style="background-color: #B1E0CB">HIP (tested on MI250)</td>
+        <td style="background-color: #B1E0CB">CUDA 12 (tested on V100, A100, H100, GH200)</td>
+        <td style="background-color: #B1E0CB">HIP (tested on MI250, MI300)</td>
         <td style="background-color: #B1E0CB">Tested on Intel MAX 1550</td>
     </tr>
     <tr>
@@ -83,8 +90,15 @@ miniPIC is a playground for computer science and HPC experiments applied to the 
     <tr>
         <td>THRUST</td>
         <td></td>
-        <td style="background-color: #B1E0CB">tested on V100, A100 (nvcc 11)</td>
-        <td style="background-color: #B1E0CB">Tested on MI250</td>
+        <td style="background-color: #B1E0CB">tested on V100, A100, H100, GH200</td>
+        <td style="background-color: #B1E0CB">Tested on MI250, MI300</td>
+        <td style="background-color: #E0B4B2">Not tested</td>
+    </tr>
+    <tr>
+        <td>STDPAR</td>
+        <td></td>
+        <td style="background-color: #B1E0CB">tested on V100, A100, H100, GH200</td>
+        <td style="background-color: #B1E0CB">Tested on MI250, MI300</td>
         <td style="background-color: #E0B4B2">Not tested</td>
     </tr>
     <tr>
@@ -97,8 +111,8 @@ miniPIC is a playground for computer science and HPC experiments applied to the 
     <tr>
         <td>OpenMP target</td>
         <td></td>
-        <td style="background-color: #E0B4B2">Tested (nvhpc 23.7)</td>
-        <td style="background-color: #E0B4B2">Not tested</td>
+        <td style="background-color: #B1E0CB">Tested (nvhpc 23.7) on V100, A100</td>
+        <td style="background-color: #B1E0CB">Tested on MI250</td>
         <td style="background-color: #E0B4B2">Not tested</td>
     </tr>  
 </table>
@@ -131,3 +145,8 @@ miniPIC is a playground for computer science and HPC experiments applied to the 
 - [Continuous Integration](./doc/ci.md)
 - [Code structure](./doc/code_structure.md)
 
+## Publications
+
+- SILVA-CUEVAS, J. J., ZYCH, M., PEYEN, K., et al. Towards a complete task-based implementation of a 3D Particle-In-Cell code: performance studies and benchmarks. Computer Physics Communications, 2025, p. 109647. https://doi.org/10.1016/j.cpc.2025.109647
+
+- KHOURY, E. E., LOBET, M., COLOMBET, L., BIGOT, J., PEYEN, K., SILVA-CUEVAS, J. J. Exploring C++ standard parallelism for GPU programming in a particle-in-cell application (preprint). 2025. HAL: [hal-05316488](https://hal.science/hal-05316488) — PDF: [HeteroPar_EuroPar.pdf](https://hal.science/hal-05316488v1/file/HeteroPar_EuroPar.pdf)

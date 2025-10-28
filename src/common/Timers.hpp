@@ -109,7 +109,7 @@ public:
     accumulated_times.resize(sections.size() * (1 + N_patches));
 
     // initialize timers
-    for (int i = 0; i < sections.size() * (1 + N_patches); i++) {
+    for (size_t i = 0; i < sections.size() * (1 + N_patches); i++) {
       accumulated_times[i] = 0;
       temporary_times[i]   = T_clock::now();
     }
@@ -133,7 +133,7 @@ public:
   }
 
   //! Destructor
-  ~Struc_Timers(){};
+  ~Struc_Timers() {};
 
   // _______________________________________________________________
   //
@@ -179,7 +179,7 @@ public:
     auto index = first_index(section) + i_patch + 1;
 
     // auto time = std::chrono::high_resolution_clock::now();
-    auto time = T_clock::now();
+    // auto time = T_clock::now();
 
     temporary_times[index] = T_clock::now();
   }
@@ -256,7 +256,7 @@ public:
 
     mini_float coverage = 0;
 
-    for (int itimer = 3; itimer < sections.size(); itimer++) {
+    for (size_t itimer = 4; itimer < sections.size(); itimer++) {
 
       double global_time = accumulated_times[first_index(sections[itimer])];
       double thread_time = 0;
@@ -285,7 +285,7 @@ public:
   //! \brief Save the initialization time in the timers file
   //
   // _______________________________________________________________
-  void save_initialization(Params params) {
+  void save_initialization() {
     const double initialization_time = accumulated_times[first_index(initialization)];
     std::ofstream file;
     file.open("timers.json", std::ios::app);
@@ -333,7 +333,7 @@ public:
   //! \param  params : parameters of the simulation
   //! \param  iteration : current iteration
   // _______________________________________________________________
-  void save(Params params, int iteration) {
+  void save(Params params, unsigned int iteration) {
 
     if (iteration < params.save_timers_start)
       return;
@@ -345,10 +345,10 @@ public:
     // or if the simulation is finished (iteration > n_it)
     if (!(timer_iteration % params.save_timers_period) || (iteration > params.n_it)) {
 
-      const double initialization_time = accumulated_times[first_index(initialization)];
-      const double main_loop_time      = accumulated_times[first_index(main_loop)];
-      const double diags_time          = accumulated_times[first_index(diags)];
-      const auto pic_iteration_time    = accumulated_times[first_index(pic_iteration)];
+      // const double initialization_time = accumulated_times[first_index(initialization)];
+      const double main_loop_time   = accumulated_times[first_index(main_loop)];
+      const double diags_time       = accumulated_times[first_index(diags)];
+      const auto pic_iteration_time = accumulated_times[first_index(pic_iteration)];
 
       std::stringstream local_buffer("");
 
@@ -361,7 +361,7 @@ public:
       local_buffer << "    \"pic iteration\" : " << pic_iteration_time << ",\n";
       local_buffer << "    \"diags\" : " << diags_time << ",\n";
 
-      for (int itimer = 3; itimer < sections.size(); itimer++) {
+      for (size_t itimer = 3; itimer < sections.size(); itimer++) {
         local_buffer << "    \"" << sections[itimer].name << "\" : [";
         for (int i = 0; i < N_patches + 1; i++) {
           local_buffer << accumulated_times[first_index(sections[itimer]) + i];
@@ -403,7 +403,7 @@ public:
       }
 
     } // end if save_timers_period
-  }   // end save
+  } // end save
 
 private:
   // Array to store the timers

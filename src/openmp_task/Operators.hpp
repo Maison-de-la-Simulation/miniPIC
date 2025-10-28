@@ -487,7 +487,7 @@ auto push_momentum(Patch &patch, double dt) -> void {
       patch.particles_m[is].mz_h(ip) = pz;
 
     } // End for each particles
-  }   // end for species
+  } // end for species
 }
 
 // _____________________________________________________________________
@@ -583,8 +583,8 @@ auto pushBC_bin(Params &params,
           }
         }
       } // end for
-    }   // if type of conditions
-  }     // if on border
+    } // if type of conditions
+  } // if on border
 }
 
 // _____________________________________________________________________
@@ -1706,8 +1706,8 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
             vec_patch[idx_neighbor].particles_to_move_m[is][idx_buffer].size();
 
         } // end for each neighbors
-      }   // end for each neighbors
-    }     // end for each neighbors
+      } // end for each neighbors
+    } // end for each neighbors
 
     if (coming_number_of_particles > 0) {
       patch.particles_m[is].resize(number_of_particles + coming_number_of_particles,
@@ -1784,8 +1784,8 @@ auto exchange_particles(Params &params, std::vector<Patch> &vec_patch, int id_pa
           } // if buffer size > 0
 
         } // end for each neighbors
-      }   // end for each neighbors
-    }     // end for each neighbors
+      } // end for each neighbors
+    } // end for each neighbors
 
     // std::cerr << "end exchange" << std::endl;
 
@@ -1849,7 +1849,7 @@ auto reduc_current(Patch &patch) -> void {
       }
 
     } // end check if particles
-  }   // end for species
+  } // end for species
 }
 
 // ____________________________________________________________________________
@@ -1911,7 +1911,6 @@ auto local2global(ElectroMagn &em, Patch &patch) -> void {
   } // end if total_particles
 }
 
-
 // ____________________________________________________________________________
 //! \brief Copy all local current grid in the global grid
 //! \param[in] ElectroMagn & em - global electromagnetic fields
@@ -1945,7 +1944,7 @@ auto local2global_internal(ElectroMagn &em, Patch &patch) -> void {
 #pragma omp simd
 #endif
         for (int iz = 3; iz < patch.vec_Jx_m[0].nz() - 3; iz++) {
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
@@ -1957,7 +1956,7 @@ auto local2global_internal(ElectroMagn &em, Patch &patch) -> void {
 #pragma omp simd
 #endif
         for (int iz = 3; iz < patch.vec_Jy_m[0].nz() - 3; iz++) {
-          em.Jy_m(i_global_p + ix, j_global_d + iy, k_global_p + iz) += 
+          em.Jy_m(i_global_p + ix, j_global_d + iy, k_global_p + iz) +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
@@ -1969,7 +1968,7 @@ auto local2global_internal(ElectroMagn &em, Patch &patch) -> void {
 #pragma omp simd
 #endif
         for (int iz = 3; iz < patch.vec_Jz_m[0].nz() - 3; iz++) {
-          em.Jz_m(i_global_p + ix, j_global_p + iy, k_global_d + iz) += 
+          em.Jz_m(i_global_p + ix, j_global_p + iy, k_global_d + iz) +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
@@ -2010,193 +2009,193 @@ auto local2global_borders(ElectroMagn &em, Patch &patch) -> void {
       for (int iy = 0; iy < patch.vec_Jx_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     for (int ix = patch.vec_Jx_m[0].nx() - 3; ix < patch.vec_Jx_m[0].nx(); ix++) {
       for (int iy = 0; iy < patch.vec_Jx_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     //_______
-    
+
     for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
       for (int iy = 0; iy < 3; iy++) {
         for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-  
-      for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
-        for (int iy = patch.vec_Jx_m[0].ny() - 3; iy < patch.vec_Jx_m[0].ny(); iy++) {
-          for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
+
+    for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
+      for (int iy = patch.vec_Jx_m[0].ny() - 3; iy < patch.vec_Jx_m[0].ny(); iy++) {
+        for (int iz = 0; iz < patch.vec_Jx_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     //_______
-  
+
     for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jx_m[0].ny() - 3; iy++) {
         for (int iz = 0; iz < 3; iz++) {
 #pragma omp atomic
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     for (int ix = 3; ix < patch.vec_Jx_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jx_m[0].ny() - 3; iy++) {
         for (int iz = patch.vec_Jx_m[0].nz() - 3; iz < patch.vec_Jx_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jx_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jx_m[0](ix, iy, iz);
         }
       }
     }
-  
-      //____________________________Y
-  
+
+    //____________________________Y
+
     for (int ix = 0; ix < 3; ix++) {
       for (int iy = 0; iy < patch.vec_Jy_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     for (int ix = patch.vec_Jy_m[0].nx() - 3; ix < patch.vec_Jy_m[0].nx(); ix++) {
       for (int iy = 0; iy < patch.vec_Jy_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     //_______
-    
+
     for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
       for (int iy = 0; iy < 3; iy++) {
         for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-  
-      for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
-        for (int iy = patch.vec_Jy_m[0].ny() - 3; iy < patch.vec_Jy_m[0].ny(); iy++) {
-          for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
+
+    for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
+      for (int iy = patch.vec_Jy_m[0].ny() - 3; iy < patch.vec_Jy_m[0].ny(); iy++) {
+        for (int iz = 0; iz < patch.vec_Jy_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     //_______
-  
+
     for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jy_m[0].ny() - 3; iy++) {
         for (int iz = 0; iz < 3; iz++) {
 #pragma omp atomic
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     for (int ix = 3; ix < patch.vec_Jy_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jy_m[0].ny() - 3; iy++) {
         for (int iz = patch.vec_Jy_m[0].nz() - 3; iz < patch.vec_Jy_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jy_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jy_m[0](ix, iy, iz);
         }
       }
     }
-    
-      //____________________________Z
-  
+
+    //____________________________Z
+
     for (int ix = 0; ix < 3; ix++) {
       for (int iy = 0; iy < patch.vec_Jz_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     for (int ix = patch.vec_Jz_m[0].nx() - 3; ix < patch.vec_Jz_m[0].nx(); ix++) {
       for (int iy = 0; iy < patch.vec_Jz_m[0].ny(); iy++) {
         for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     //_______
-    
+
     for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
       for (int iy = 0; iy < 3; iy++) {
         for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-  
-      for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
-        for (int iy = patch.vec_Jz_m[0].ny() - 3; iy < patch.vec_Jz_m[0].ny(); iy++) {
-          for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
+
+    for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
+      for (int iy = patch.vec_Jz_m[0].ny() - 3; iy < patch.vec_Jz_m[0].ny(); iy++) {
+        for (int iz = 0; iz < patch.vec_Jz_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-  
+
     //_______
-  
+
     for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jz_m[0].ny() - 3; iy++) {
         for (int iz = 0; iz < 3; iz++) {
 #pragma omp atomic
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }
     }
-    
+
     for (int ix = 3; ix < patch.vec_Jz_m[0].nx() - 3; ix++) {
       for (int iy = 3; iy < patch.vec_Jz_m[0].ny() - 3; iy++) {
         for (int iz = patch.vec_Jz_m[0].nz() - 3; iz < patch.vec_Jz_m[0].nz(); iz++) {
 #pragma omp atomic
-          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) += 
+          em.Jz_m(i_global_d + ix, j_global_p + iy, k_global_p + iz) +=
             patch.vec_Jz_m[0](ix, iy, iz);
         }
       }

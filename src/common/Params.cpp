@@ -46,8 +46,8 @@ void Params::add_particle_binning(std::string diag_name,
   }
 
   // Check that the species indexes exist
-  for (unsigned int i = 0; i < species_indexes.size(); i++) {
-    if (species_indexes[i] >= species_names_.size()) {
+  for (size_t i = 0; i < species_indexes.size(); i++) {
+    if (species_indexes[i] >= static_cast<int>(species_names_.size())) {
       ERROR("ERROR in the particle binning creation: The species index "
             << species_indexes[i] << " does not exist" << std::endl);
       std::raise(SIGABRT);
@@ -197,11 +197,11 @@ void Params::read_from_command_line_arguments(int argc, char *argv[]) {
   std::vector<std::string> args(argv, argv + argc);
 
   if (argc > 1) {
-    unsigned int iarg = 1;
+    int iarg = 1;
     while (iarg < argc) {
 
-      const std::string key (args[iarg]);
-      if (key == "-it" or key == "iterations") {
+      const std::string key(args[iarg]);
+      if (key == "-it" or key == "--iterations") {
         const unsigned int iterations = std::stoi(args[iarg + 1]);
         simulation_time               = iterations * dt;
         iarg += 2;
@@ -284,6 +284,9 @@ void Params::title() {
 
   std::cout << seperator(50) << std::endl;
   std::cout << std::endl;
+
+  DEBUG("Debug mode activated");
+
 }
 
 // _____________________________________________________
@@ -301,7 +304,7 @@ void Params::info() {
   std::cout << " > Time: " << std::endl;
   std::cout << "   - simulation time: " << simulation_time << std::endl;
   std::cout << "   - dt: " << dt << std::endl;
-  std::cout << "   - CFL: " << dt_cfl << std::endl;  
+  std::cout << "   - CFL: " << dt_cfl << std::endl;
   std::cout << "   - number of iterations: " << n_it << std::endl;
 
   std::cout << std::endl;
@@ -319,7 +322,7 @@ void Params::info() {
   std::cout << "   - space step: " << dx << " " << dy << " " << dz << std::endl;
 
   std::cout << std::endl;
-  for (auto is = 0; is < get_species_number(); ++is) {
+  for (size_t is = 0; is < get_species_number(); ++is) {
 
     std::cout << " > Species " << is << ": " << species_names_[is] << "\n"
               << "   - mass: " << mass_[is] << "\n"
@@ -377,14 +380,14 @@ void Params::info() {
 
   if (N > 0) {
     std::cout << " > Particle binning: " << std::endl;
-    for (auto id = 0; id < N; ++id) {
+    for (size_t id = 0; id < N; ++id) {
       auto dim = particle_binning_properties_[id].axis_.size();
       std::cout << "   - " << particle_binning_properties_[id].name_ << " on species ";
       for (auto is : particle_binning_properties_[id].species_indexes_) {
         std::cout << is << " ";
       }
       std::cout << "\n";
-      for (auto d = 0; d < dim; ++d) {
+      for (size_t d = 0; d < dim; ++d) {
         std::cout << "     * axis " << d << ": " << particle_binning_properties_[id].axis_[d]
                   << " [" << particle_binning_properties_[id].min_[d] << ", "
                   << particle_binning_properties_[id].max_[d] << ", "

@@ -119,7 +119,7 @@ def read_particle_cloud(path):
 
     k = 0
 
-    particle_number = struct.unpack('I',content[k:k+4])[0] ; k+= 4
+    particle_number = struct.unpack('Q',content[k:k+8])[0] ; k+= 8
 
     id = np.zeros(particle_number)
     w = np.zeros(particle_number)

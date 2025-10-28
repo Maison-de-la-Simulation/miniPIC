@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the following paper."
+title: "Towards a complete task-based implementation of a 3D Particle-In-Cell code: performance studies and benchmarks"
+version: "v1.0"
+authors:
+  - family-names: "Silva-Cuevas"
+    given-names: "Juan Jose"
+  - family-names: "Zych"
+    given-names: "M."
+  - family-names: "Peyen"
+    given-names: "Kévin"
+  - family-names: "Kabadshow"
+    given-names: "I."
+  - family-names: "Lobet"
+    given-names: "Mathieu"
+date-released: "2025-05-30"
+doi: "10.1016/j.cpc.2025.109647"
+url: "https://doi.org/10.1016/j.cpc.2025.109647"
+license: ""
+keywords: ["Particle-In-Cell", "HPC", "task-based", "3D", "Kokkos"]
+abstract: "This paper presents a task-based implementation of a 3D Particle-In-Cell code and reports performance studies and benchmarks."
+
+references:
+  - title: "Exploring C++ standard parallelism for GPU programming in a particle-in-cell application"
+    authors:
+      - given-names: "Ester El"
+        family-names: "Khoury"
+      - given-names: "Mathieu"
+        family-names: "Lobet"
+      - given-names: "Laurent"
+        family-names: "Colombet"
+      - given-names: "Julien"
+        family-names: "Bigot"
+      - given-names: "Kévin"
+        family-names: "Peyen"
+      - given-names: "Juan Jose"
+        family-names: "Silva-Cuevas"
+    year: 2025
+    type: "preprint"
+    url: "https://hal.science/hal-05316488"
+    note: "HAL preprint (v1). PDF: https://hal.science/hal-05316488v1/file/HeteroPar_EuroPar.pdf"

@@ -25,6 +25,7 @@ configuration_list = {
 
     'sequential' : { 'compiler' : None,
                  'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="sequential"',
+                 'env' : '',
                  'prefix' : '',
                  'args' : [ '', '', '', '', ''],
                  'exe_name' : 'minipic.seq',
@@ -33,27 +34,178 @@ configuration_list = {
 
     'openmp' : { 'compiler' : None,
                  'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="openmp"',
-                 'prefix' : 'OMP_PROC_BIND=spread',
+                 'env' : 'OMP_PROC_BIND=spread',
+                 'prefix' : '',
                  'args' : [ '', '', '', '', ''],
                  'exe_name' : 'minipic.omp',
                  'threads' : [8, 8, 8, 1, 1],
                  'benchmarks' : [ "default", "beam", "antenna", "Ecst", "Bcst" ]},
 
+    'kokkos_views' : { 'compiler' : 'clang++',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos_views" -DCMAKE_BUILD_TYPE=Release',
+                 'env' : 'OMP_PROC_BIND=spread',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '-it 10000', '-it 10000'],
+                 'exe_name' : 'minipic.kokkos_views',
+                 'threads' : [8, 8, 8, 1, 1],
+                 'benchmarks' : [ "default", "beam", "antenna", "Ecst", "Bcst" ]},
+
+    'kokkos_views_gpu' : { 'compiler' : 'clang++',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos_views" -DCMAKE_BUILD_TYPE=Release -DKokkos_ROOT="/Users/mathieu/Installations/kokkos/install/"',
+                 'env' : 'OMP_PROC_BIND=spread',
+                 'prefix' : '',
+                 'args' : [ '', '', ''],
+                 'exe_name' : 'minipic.kokkos_views',
+                 'threads' : [1, 1, 1],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna" ]},
+
+    'kokkos_dualview' : { 'compiler' : 'clang++',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos"',
+                 'env' : 'OMP_PROC_BIND=spread',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '-it 10000', '-it 10000'],
+                 'exe_name' : 'minipic.kokkos',
+                 'threads' : [8, 8, 8, 1, 1],
+                 'benchmarks' : [ "default", "beam", "antenna", "Ecst", "Bcst" ]},
+
+    'kokkos_dualview_gpu' : { 'compiler' : 'g++',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos" -DDEVICE="nvidia_a100" -DCMAKE_BUILD_TYPE=Release',
+                #  'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos" -DDEVICE="nvidia_v100"',
+                 'env' : 'OMP_PROC_BIND=spread',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '', ''],
+                 'exe_name' : 'minipic.kokkos',
+                 'threads' : [1, 1, 1],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
+    'kokkos_unified' : { 'compiler' : 'clang++',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos_unified"',
+                 'env' : 'OMP_PROC_BIND=spread',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '-it 10000', '-it 10000'],
+                 'exe_name' : 'minipic.kokkos_unified',
+                 'threads' : [8, 8, 8, 1, 1],
+                 'benchmarks' : [ "default", "beam", "antenna", "Ecst", "Bcst" ]},
+
+    'kokkos_unified_gpu' : { 'compiler' : None,
+                 #'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos_unified" -DDEVICE="nvidia_v100"',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos_unified" -DDEVICE="nvidia_a100"',
+                 'env' : 'OMP_PROC_BIND=spread',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '', ''],
+                 'exe_name' : 'minipic.kokkos_unified',
+                 'threads' : [1, 1, 1],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
+    'kokkos_dualview_unified_gpu' : { 'compiler' : None,
+                 #'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos_dualview_unified" -DDEVICE="nvidia_v100"',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos_dualview_unified" -DDEVICE="nvidia_a100"',
+                 'env' : 'OMP_PROC_BIND=spread',   
+                 'prefix' : '',
+                 'args' : [ '', '', '', '', ''],
+                 'exe_name' : 'minipic.kokkos_dualview_unified',
+                 'threads' : [1, 1, 1],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
+    'thrust_gpu' : { 'compiler' : 'nvcc',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="thrust" -DDEVICE="nvidia_a100" -DCMAKE_BUILD_TYPE=Release',
+                 'env' : '',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '', ''],
+                 'exe_name' : 'minipic.thrust',
+                 'threads' : [1, 1, 1],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
     'openmp_task' : { 'compiler' : 'clang++',
                  'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="openmp_task"',
-                 'prefix' : 'OMP_PROC_BIND=spread OMP_MAX_ACTIVE_LEVELS=10',
+                 'env' : 'OMP_PROC_BIND=spread OMP_MAX_ACTIVE_LEVELS=10',
+                 'prefix' : '',
                  'args' : [ '', '', '', '', ''],
                  'exe_name' : 'minipic.omp_task',
                  'threads' : [8, 8, 8, 1, 1],
                  'benchmarks' : [ "default", "beam", "antenna", "Ecst", "Bcst" ]},
 
+    'openmp_target' : { 'compiler' : 'nvc++',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="openmp_target"',
+                 'env' : 'OMP_PROC_BIND=spread OMP_MAX_ACTIVE_LEVELS=10',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '', ''],
+                 'exe_name' : 'minipic.omp_target',
+                 'threads' : [1, 1, 1, 1, 1],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna" ]},
+
+    'openacc' : { 'compiler' : 'nvc++',
+                 #'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="openacc" -DDEVICE="nvidia_v100"',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="openacc" -DDEVICE="nvidia_a100"',
+                 'env' : '',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '', ''],
+                 'exe_name' : 'minipic.acc',
+                 'threads' : [1, 1, 1, 1, 1],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
     'eventify' : { 'compiler' : 'clang++',
                  'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="eventify"',
-                 'prefix' : 'KMP_AFFINITY= ',
+                 'env' : 'KMP_AFFINITY= ',
+                 'prefix' : '',
                  'args' : [ '', '', '', '', ''],
                  'exe_name' : 'minipic.eventify',
                  'threads' : [8, 8, 8, 1, 1],
                  'benchmarks' : [ "default", "beam", "antenna", "Ecst", "Bcst" ]},
+
+    'sycl' : { 'compiler' : 'icpx',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="sycl"',
+                 'env' : '',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '', ''],
+                 'exe_name' : 'minipic.icpx',
+                 'threads' : [8, 8, 8],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
+    'sycl_gpu' : { 'compiler' : 'icpx',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="sycl" -DDEVICE="nvidia_v100"',
+                 'env' : '',
+                 'prefix' : '',
+                 'args' : [ '-gpu', '-gpu', '-gpu', '', ''],
+                 'exe_name' : 'minipic.icpx',
+                 'threads' : [1, 1, 1],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
+    'sycl_pvc' : { 'compiler' : 'icpx',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="sycl" -DDEVICE="intel_pvc"',
+                 'env' : '',
+                 'prefix' : '',
+                 'args' : [ '-gpu', '-gpu', '-gpu', '', ''],
+                 'exe_name' : 'minipic.icpx',
+                 'threads' : [1, 1, 1],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
+    'acpp' : { 'compiler' : 'acpp',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="acpp" -DDEVICE="cpu_x86"',
+                 'prefix' : '',
+                 'args' : [ '', '', '', '', ''],
+                 'exe_name' : 'minipic.acpp',
+                 'threads' : [8, 8, 8],
+                 'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
+    'stdpar_gpu' : { 'compiler' : 'nvc++',
+                # 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="stdpar" -DDEVICE="nvidia_v100"',
+                'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="stdpar" -DDEVICE="nvidia_a100"',
+                'env' : '',
+                'prefix' : '',
+                'args' : [ '', '', '', '', ''],
+                'exe_name' : 'minipic.stdpar',
+                'threads' : [1, 1, 1],
+                'benchmarks' : [ "default_gpu", "beam_gpu", "antenna"]},
+
+    'stdpar_cpu' : { 'compiler' : None,
+            'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="stdpar_cpu"',
+            'env' : '',
+            'prefix' : '',
+            'args' : [ '', '', '', '', ''],
+            'exe_name' : 'minipic.stdparcpu',
+            'threads' : [8, 8, 8, 1, 1],
+            'benchmarks' : [ "default_gpu", "beam", "antenna", "Ecst", "Bcst" ]},
 }
 
 config_description = "List of all configurations: \n\n"
@@ -82,6 +234,11 @@ parser.add_argument('--no-evaluate', help=' if used, do not evaluate against the
 parser.add_argument('--compile-only', help=' if used, only compile the tests', action='store_true')
 parser.add_argument('--threshold', help=' threshold for the validation', default=1e-10, type=float)
 parser.add_argument('--save-timers', help=' save the timers for each benchmark', action='store_true')
+parser.add_argument('--prefix', help=' add custom prefix for the execution, for instance srun', default='')
+parser.add_argument('--env', help=' add custom environment variables for the execution, for instance `OMP_PROC_BIND=spread`', default='')
+parser.add_argument('--device', help=' select the device type to pass for cmake compilation`', default='')
+parser.add_argument('--cmake-args', help=' add custom cmake arguments for the compilation', default='')
+parser.add_argument('--backend', help=' select the backend to use', default='')
 args = parser.parse_args()
 
 # Selected configuration
@@ -136,6 +293,14 @@ if (args.threads != None):
         for i in range(len(selected_config['benchmarks'])):
             selected_config['threads'].append(int(args.threads))
 
+# Environment
+if (args.env != None):
+    selected_config['env'] += ' ' + args.env
+
+# Prefix 
+if (args.prefix != None):
+    selected_config['prefix'] += ' ' + args.prefix
+
 # Select arguments
 if (args.arguments != None):
 
@@ -156,6 +321,32 @@ else:
     selected_config['args'] = []
     for i in range(len(selected_config['benchmarks'])):
         selected_config['args'].append('')
+
+# Select device
+if ((args.device != None) and (args.device != '')):
+
+    cmake_args = selected_config['cmake'].split(" ")
+
+    # remove the device option if exists
+    cmake_args = [arg for arg in cmake_args if not arg.startswith("-DDEVICE=")]
+    cmake_args.append("-DDEVICE={}".format(args.device))
+    # add the new device option
+    selected_config['cmake'] = " ".join(cmake_args)
+
+# Change backend
+if ((args.backend != None) and (args.backend != '')):
+    cmake_args = selected_config['cmake'].split(" ")
+
+    # remove the backend option if exists
+    cmake_args = [arg for arg in cmake_args if not arg.startswith("-DBACKEND=")]
+    cmake_args.append("-DBACKEND={}".format(args.backend))
+    # add the new device option
+    selected_config['cmake'] = " ".join(cmake_args)
+
+# Add custom cmake arguments
+if ((args.cmake_args != None) and (args.cmake_args != '')):
+    
+    selected_config['cmake'] = selected_config['cmake'] + " " + args.cmake_args
 
 # threshold
 threshold = args.threshold
@@ -240,6 +431,12 @@ if compile_only:
 else:
     print(" Evaluate: {}".format(evaluate))
 print(" Threshold: {}".format(threshold))
+print(" Prefix: {}".format(selected_config['prefix']))
+print(" Env: {}".format(selected_config['env']))
+print(" Device: {}".format(args.device))
+if args.backend != '' and args.backend != None:
+    print(" Backend: {}".format(args.backend))
+print(" Cmake args: {}".format(selected_config['cmake']))
 
 # print all benchamrks
 
@@ -257,6 +454,7 @@ executable_name = selected_config['exe_name']
 
 for ib,benchmark in enumerate(selected_config['benchmarks']):
 
+    env = selected_config['env']
     prefix = selected_config['prefix']
     args = selected_config['args'][ib]
 
@@ -333,13 +531,13 @@ for ib,benchmark in enumerate(selected_config['benchmarks']):
         #os.system("{} ./{} {}".format(prefix, executable_name, args))
 
         # if benchmark has key threads
-        prefix += " OMP_NUM_THREADS={}".format(nb_threads)
+        env = " OMP_NUM_THREADS={} ".format(nb_threads) + env
 
         print("")
         print("   -> Execution ")
         print("")
 
-        subprocess_command = ["{} ./{} {}".format(prefix, executable_name, args)]
+        subprocess_command = ["{} {} ./{} {}".format(env, prefix, executable_name, args)] # srun numactl --interleave=all 
 
         print(subprocess_command)
 
@@ -429,6 +627,11 @@ for ib,benchmark in enumerate(selected_config['benchmarks']):
             f.close()
 
             print("    Timers saved in {}".format(ci_file_name))
+            
+        
+                       
+        
+
 
     # ____________________________________________________________________________
 
