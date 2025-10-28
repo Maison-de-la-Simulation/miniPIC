@@ -23,7 +23,7 @@ endif()
 message(" Build type: ${CMAKE_BUILD_TYPE}")
 
 # Backend
-set(BACKEND "sequential" CACHE STRING "Backend to use (sequential (default), openmp, openmp_task, openmp_target, kokkos, thrust, thrust_unified, eventify)")
+set(BACKEND "sequential" CACHE STRING "Backend to use (sequential (default), openmp, openmp_task, openmp_target, kokkos, kokkos_views,thrust, thrust_unified, eventify)")
 
 # Atomic type for projection using Kokkos
 set(KOKKOS_PROJECTION_TYPE "scatter_view" CACHE STRING "Type of projection for Kokkos (scatter_view (default), atomic_view)")
@@ -86,6 +86,9 @@ elseif (BACKEND STREQUAL "kokkos_dualview_unified")
 elseif (BACKEND STREQUAL "kokkos_unified")
   message(" Backend: kokkos with unified memory")
   set(EXE_NAME minipic.kokkos_unified)
+elseif (BACKEND STREQUAL "kokkos_views")
+  message(" Backend: kokkos with views")
+  set(EXE_NAME minipic.kokkos_views)
 elseif ((BACKEND STREQUAL "thrust") OR (BACKEND STREQUAL "thrust_unified"))
   message(" Backend: thrust")
   set(EXE_NAME minipic.thrust)
@@ -108,7 +111,7 @@ message(" Executable name: ${EXE_NAME}")
 set(DEVICE "auto" CACHE STRING "Device architecture (auto (default), nvidia_v100)")
 
 # Check that the architecture is supported
-if ((DEVICE STREQUAL "auto") OR (DEVICE STREQUAL "nvidia_v100") OR (DEVICE STREQUAL "nvidia_a100") OR (DEVICE STREQUAL "amd_mi250") OR (DEVICE STREQUAL "nvidia_gh200") OR (DEVICE STREQUAL "nvidia_h100") OR (DEVICE STREQUAL "intel_pvc") OR (DEVICE STREQUAL "amd_mi300") OR (DEVICE STREQUAL "amd_genoa") OR (DEVICE STREQUAL "nvidia_grace"))
+if ((DEVICE STREQUAL "auto") OR (DEVICE STREQUAL "nvidia_v100") OR (DEVICE STREQUAL "nvidia_a100") OR (DEVICE STREQUAL "amd_mi250") OR (DEVICE STREQUAL "nvidia_gh200") OR (DEVICE STREQUAL "nvidia_h100") OR (DEVICE STREQUAL "intel_pvc") OR (DEVICE STREQUAL "amd_mi300") OR (DEVICE STREQUAL "amd_genoa") OR (DEVICE STREQUAL "nvidia_grace") OR (DEVICE STREQUAL "nvidia_gb200"))
  message(" Device architecture: ${DEVICE}")
 else()
  message(FATAL_ERROR "FATAL: Device (${DEVICE}) architecture not supported")
@@ -146,7 +149,7 @@ endif()
 set(LANGUAGES CXX)
 
 if ((BACKEND STREQUAL "thrust") OR (BACKEND STREQUAL "stdpar") OR (BACKEND STREQUAL "thrust_unified"))
- if ((DEVICE STREQUAL "nvidia_v100") OR (DEVICE STREQUAL "nvidia_a100") OR (DEVICE STREQUAL "nvidia_h100") OR (DEVICE STREQUAL "auto") OR (DEVICE STREQUAL "nvidia_gh200"))
+ if ((DEVICE STREQUAL "nvidia_v100") OR (DEVICE STREQUAL "nvidia_a100") OR (DEVICE STREQUAL "nvidia_h100") OR (DEVICE STREQUAL "auto") OR (DEVICE STREQUAL "nvidia_gh200") OR (DEVICE STREQUAL "nvidia_gb200"))
  set(LANGUAGES ${LANGUAGES} CUDA)
  endif()
 endif()
@@ -173,6 +176,8 @@ if ( ((BACKEND STREQUAL "thrust") OR (BACKEND STREQUAL "thrust_unified") OR (BAC
       set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -gencode arch=compute_90,code=sm_90)
   elseif (DEVICE STREQUAL "nvidia_gh200")
       set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -gencode arch=compute_90,code=sm_90)
+  elseif (DEVICE STREQUAL "nvidia_gb200")
+      set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -gencode arch=compute_100,code=sm_100)
   elseif (DEVICE STREQUAL "amd_mi250")
     if (MINIPIC_USES_UVM STREQUAL ON)
       set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} --offload-arch=gfx90a:xnack+)
@@ -198,6 +203,8 @@ elseif (((BACKEND STREQUAL "openacc") OR (BACKEND STREQUAL "openmp_target") OR (
    set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -gpu=cc90)
   elseif (DEVICE STREQUAL "nvidia_gh200")
    set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -gpu=cc90)
+  elseif (DEVICE STREQUAL "nvidia_gb200")
+   set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -gpu=cc100)
   elseif (DEVICE STREQUAL "amd_mi250")
     if (MINIPIC_USES_UVM STREQUAL ON)
       set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} --offload-arch=gfx90a:xnack+)
@@ -227,6 +234,8 @@ elseif (BACKEND STREQUAL "sycl")
    set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -fsycl-targets=nvidia_gpu_sm_90 -D__MINIPIC_ON_GPU__)
  elseif (DEVICE STREQUAL "nvidia_gh200")
    set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -fsycl-targets=nvidia_gpu_sm_90 -D__MINIPIC_ON_GPU__)
+  elseif (DEVICE STREQUAL "nvidia_gb200")
+   set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -fsycl-targets=nvidia_gpu_sm_100 -D__MINIPIC_ON_GPU__)
  elseif (DEVICE STREQUAL "amd_mi250")
    set(ARCH_OPT_FLAGS ${ARCH_OPT_FLAGS} -fsycl-targets=amd_gpu_gfx90a -D__MINIPIC_ON_GPU__)
  elseif (DEVICE STREQUAL "amd_mi300")
@@ -325,6 +334,25 @@ elseif (BACKEND STREQUAL "kokkos_dualview_unified")
 elseif (BACKEND STREQUAL "kokkos_unified")
 
  set(COMPILE_OPTIONS ${COMPILE_OPTIONS} -std=c++17 -D__MINIPIC_KOKKOS_UNIFIED__ -D__MINIPIC_KOKKOS_COMMON__ ${ARCH_OPT_FLAGS})
+
+ if (KOKKOS_PROJECTION_TYPE STREQUAL "scatter_view")
+  set(COMPILE_OPTIONS ${COMPILE_OPTIONS} -D__MINIPIC_KOKKOS_SCATTERVIEW__)
+ else() #if (KOKKOS_PROJECTION_TYPE STREQUAL "atomic_view")
+  set(COMPILE_OPTIONS ${COMPILE_OPTIONS} -D__MINIPIC_KOKKOS_ATOMICVIEW__)
+ endif()
+
+ set(LINK_OPTIONS ${LINK_OPTIONS} ${ARCH_OPT_FLAGS})
+ include_directories(src/setups src/kokkos src/common)
+
+ # list of source files - automatic search cpp files in src/openmp and src/common directory
+ file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/kokkos/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/common/*.cpp")
+
+ find_package(Kokkos REQUIRED)
+
+# -----> Kokkos mode using unified memory <------
+elseif (BACKEND STREQUAL "kokkos_views")
+
+ set(COMPILE_OPTIONS ${COMPILE_OPTIONS} -std=c++17 -D__MINIPIC_KOKKOS_VIEWS__ -D__MINIPIC_KOKKOS_COMMON__ ${ARCH_OPT_FLAGS})
 
  if (KOKKOS_PROJECTION_TYPE STREQUAL "scatter_view")
   set(COMPILE_OPTIONS ${COMPILE_OPTIONS} -D__MINIPIC_KOKKOS_SCATTERVIEW__)

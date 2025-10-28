@@ -6,7 +6,7 @@ if (BACKEND STREQUAL "openmp")
   target_link_libraries("${EXE_NAME}" OpenMP::OpenMP_CXX)
 
 # ---->  Kokkos mode <----
-elseif (BACKEND STREQUAL "kokkos" OR BACKEND STREQUAL "kokkos_unified" OR BACKEND STREQUAL "kokkos_dualview_unified")
+elseif (BACKEND STREQUAL "kokkos" OR BACKEND STREQUAL "kokkos_unified" OR BACKEND STREQUAL "kokkos_dualview_unified" OR BACKEND STREQUAL "kokkos_views")
   target_link_libraries("${EXE_NAME}" Kokkos::kokkos)
 
   # ---->  Thrus mode <----

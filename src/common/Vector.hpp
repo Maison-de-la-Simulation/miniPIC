@@ -30,6 +30,9 @@ public:
   Kokkos::DualView<T *, Kokkos::SharedSpace> data_;
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
   Kokkos::View<T *, Kokkos::SharedSpace> data_;
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+  Kokkos::View<T *> data_;
+  typename decltype(data_)::host_mirror_type data_h_;
 #elif defined(__MINIPIC_THRUST__)
   // GPU data vector
   thrust::device_vector<T> device_data_;
@@ -99,6 +102,9 @@ public:
     data_ = Kokkos::DualView<T *, Kokkos::SharedSpace>(name, size);
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
     data_ = Kokkos::View<T *, Kokkos::SharedSpace>(name, size);
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+    data_   = Kokkos::View<T *>(name, size);
+    data_h_ = Kokkos::create_mirror_view(data_);
 #elif defined(__MINIPIC_THRUST__)
     device_data_.resize(size);
     host_data_.resize(size);
@@ -133,6 +139,8 @@ public:
     return data_.h_view(i);
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
     return data_(i);
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+      return data_h_(i);
 #elif defined(__MINIPIC_THRUST__)
     return host_data_[i];
 #elif defined(__MINIPIC_THRUST_UNIFIED__)
@@ -156,6 +164,8 @@ public:
     return data_.h_view(i);
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
     return data_(i);
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+    return data_h_(i);
 #elif defined(__MINIPIC_THRUST__)
     return host_data_[i];
 #elif defined(__MINIPIC_THRUST_UNIFIED__)
@@ -192,6 +202,8 @@ public:
     return data_.h_view(i);
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
     return data_(i);
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+    return data_h_(i);
 #elif defined(__MINIPIC_THRUST__)
     return host_data_[i];
 #elif defined(__MINIPIC_THRUST_UNIFIED__)
@@ -224,6 +236,8 @@ public:
       return data_.h_view.data();
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
       return data_.data();
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+      return data_h_.data();
 #elif defined(__MINIPIC_THRUST__)
       return host_data_.data();
 #elif defined(__MINIPIC_THRUST_UNIFIED__)
@@ -241,6 +255,8 @@ public:
 #if defined(__MINIPIC_KOKKOS_DUALVIEW_COMMON__)
       return data_.d_view.data();
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
+      return data_.data();
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
       return data_.data();
 #elif defined(__MINIPIC_THRUST__)
       return thrust::raw_pointer_cast(device_data_.data());
@@ -290,6 +306,9 @@ public:
     data_.resize(new_size);
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
     Kokkos::resize(data_, new_size);
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+    Kokkos::resize(data_, new_size);
+    Kokkos::resize(data_h_, new_size);
 #elif defined(__MINIPIC_THRUST__)
     host_data_.resize(new_size);
     device_data_.resize(new_size);
@@ -350,6 +369,10 @@ public:
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
     for (auto ip = size_; ip < new_size; ++ip) {
       data_(ip) = value;
+    }
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+    for (auto ip = size_; ip < new_size; ++ip) {
+      data_h_(ip) = value;
     }
 #elif defined(__MINIPIC_THRUST__)
     for (auto ip = size_; ip < new_size; ++ip) {
@@ -448,6 +471,11 @@ public:
                                  v);
       Kokkos::fence();
 
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+      for (auto i = 0; i < size_; ++i) {
+        data_h_(i) = v;
+      }
+
 #elif defined(__MINIPIC_THRUST__)
       thrust::fill(host_data_.begin(), host_data_.end(), v);
 
@@ -519,6 +547,12 @@ public:
       //   data_(i) = v;
       // }
 
+      Kokkos::fence();
+
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+      // Fill on device
+      auto & data_ref = data_;
+      Kokkos::parallel_for(size_, KOKKOS_LAMBDA(const size_t ip) { data_ref(ip) = v; });
       Kokkos::fence();
 
 #elif defined(__MINIPIC_THRUST__)
@@ -606,6 +640,20 @@ public:
 
       Kokkos::fence();
 
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+
+      typedef Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace> range_policy;
+
+      auto & data_ref = data_h_;
+
+      Kokkos::parallel_reduce(
+        "sum",
+        range_policy(0, size_),
+        KOKKOS_CLASS_LAMBDA(const size_t i, T &lsum) { lsum += Kokkos::pow(data_ref(i), power); },
+        sum);
+
+      Kokkos::fence();
+
 #elif defined(__MINIPIC_THRUST__)
 
       for (size_t i = 0; i < size_; i++) {
@@ -658,6 +706,8 @@ public:
       typename Kokkos::DualView<T *, Kokkos::SharedSpace>::t_dev view = data_.d_view;
 #elif defined(__MINIPIC_KOKKOS_UNIFIED__)
       typename Kokkos::View<T *, Kokkos::SharedSpace> view = data_;
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+      typename Kokkos::View<T *> view = data_;
 #endif
 
       Kokkos::parallel_reduce(
@@ -770,6 +820,10 @@ public:
       data_.template sync<typename Kokkos::DualView<T *>::execution_space>();
 #elif defined(__MINIPIC_KOKKOS_DUALVIEW_UNIFIED__)
       // nothing (UVM)
+#elif defined(__MINIPIC_KOKKOS_UNIFIED__)
+      // nothing (UVM)
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+      Kokkos::deep_copy(data_, data_h_);
 #elif defined(__MINIPIC_THRUST__)
       thrust::copy(host_data_.begin(), host_data_.begin() + size_, device_data_.begin());
 #elif defined(__MINIPIC_THRUST_UNIFIED__)
@@ -796,6 +850,10 @@ public:
       data_.template sync<typename Kokkos::DualView<T *>::host_mirror_space>();
 #elif defined(__MINIPIC_KOKKOS_DUALVIEW_UNIFIED__)
       // nothing (UVM)
+#elif defined(__MINIPIC_KOKKOS_UNIFIED__)
+      // nothing (UVM)
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+      Kokkos::deep_copy(data_h_, data_);
 #elif defined(__MINIPIC_THRUST__)
       thrust::copy(device_data_.begin(), device_data_.begin() + size_, host_data_.begin());
 #elif defined(__MINIPIC_THRUST_UNIFIED__)
@@ -837,6 +895,11 @@ using device_vector_t = Kokkos::DualView<mini_float *, Kokkos::SharedSpace>::t_d
 
 using vector_t        = Kokkos::View<mini_float *, Kokkos::SharedSpace>;
 using device_vector_t = Kokkos::View<mini_float *, Kokkos::SharedSpace>;
+
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+
+using vector_t        = Kokkos::View<mini_float *, Kokkos::DefaultHostExecutionSpace::memory_space>;
+using device_vector_t = Kokkos::View<mini_float *>;
 
 #elif defined(__MINIPIC_THRUST__)
 

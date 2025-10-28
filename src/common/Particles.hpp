@@ -510,6 +510,13 @@ public:
       device_vector_t my = my_.data_;
       device_vector_t mz = mz_.data_;
 
+#elif defined(__MINIPIC_KOKKOS_VIEWS__)
+
+      device_vector_t w  = weight_.data_;
+      device_vector_t mx = mx_.data_;
+      device_vector_t my = my_.data_;
+      device_vector_t mz = mz_.data_;
+
 #endif
 
       Kokkos::parallel_reduce(

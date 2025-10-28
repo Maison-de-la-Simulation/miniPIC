@@ -35,7 +35,7 @@ workflow:
     - if: $CI_COMMIT_MESSAGE =~ /\[skip ci\]/ || $CI_COMMIT_REF_NAME =~ /\[draft\]/
       when: never 
     # For branches in default_run, run the CI
-    - if: $CI_COMMIT_BRANCH =~ /size_t_particles/
+    - if: $CI_COMMIT_BRANCH =~ /size_t_particles|nvidia_blackwell/
       variables:
         BENCHMARKS_CPU: $BENCHMARKS_CPU_SHORT
         BENCHMARKS_GPU: $BENCHMARKS_GPU_SHORT
@@ -154,7 +154,7 @@ test_omp:
 # Test Mini-PIC using Kokkos OpenMP for CPU on Ruche
 # _____________________________________________________________________________
 
-test_kokkos_omp:
+test_kokkos_dualview_omp:
   # only: *default_run
   rules:
     # If not on the master branch and `src/kokkos` has been modified, run the CI
@@ -185,16 +185,56 @@ test_kokkos_omp:
   before_script:
     - source ${WORKDIR}/gitlab-ci_runs/env/kokkos_omp_cpu_intel
   script:
-    - cp -r tests tests_kokkos_omp
-    - cd tests_kokkos_omp
-    - srun --time=00:20:00 --cpus-per-task=8 --ntasks=1 --partition=cpu_short python3 run.py -c icpx -g kokkos --benchmarks=$BENCHMARKS_CPU # --save-timers
+    - cp -r tests tests_kokkos_dualview_omp
+    - cd tests_kokkos_dualview_omp
+    - srun --time=00:20:00 --cpus-per-task=8 --ntasks=1 --partition=cpu_short python3 run.py -c icpx -g kokkos_dualview --benchmarks=$BENCHMARKS_CPU # --save-timers
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using Kokkos OpenMP for CPU on Ruche
+# _____________________________________________________________________________
+
+test_kokkos_views_omp:
+  # only: *default_run
+  rules:
+    # If not on the master branch and `src/kokkos` has been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/kokkos/*
+        - src/common/*
+        - src/main.cpp
+        - src/setups/*
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has `[run ci]` in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  # needs: [ test_omp ]
+  before_script:
+    - source ${WORKDIR}/gitlab-ci_runs/env/kokkos_omp_cpu_intel
+  script:
+    - cp -r tests tests_kokkos_views_omp
+    - cd tests_kokkos_views_omp
+    - srun --time=00:20:00 --cpus-per-task=8 --ntasks=1 --partition=cpu_short python3 run.py -c icpx -g kokkos_views --benchmarks=$BENCHMARKS_CPU # --save-timers
 
 # _____________________________________________________________________________
 #
 # Test Mini-PIC using Kokkos for V100 or A100 GPU on Ruche
 # _____________________________________________________________________________
 
-test_kokkos_gpu:
+test_kokkos_dualview_gpu:
   # only: *default_run
   rules:
     # If not on the master branch and `src/kokkos` has been modified, run the CI
@@ -225,10 +265,50 @@ test_kokkos_gpu:
   before_script:
     - source $WORKDIR/gitlab-ci_runs/env/kokkos_a100
   script:
-    - cp -r tests tests_kokkos_gpu
-    - cd tests_kokkos_gpu
-    - srun --nodes=1 --time=00:15:00 -p gpua100 --gres=gpu:1 --exclude=$EXCLUDED_GPUS python3 run.py -c g++ -g kokkos_gpu --benchmarks=$BENCHMARKS_GPU  # --save-timers
-  
+    - cp -r tests tests_kokkos_dualview_gpu
+    - cd tests_kokkos_dualview_gpu
+    - srun --nodes=1 --time=00:15:00 -p gpua100 --gres=gpu:1 --exclude=$EXCLUDED_GPUS python3 run.py -c g++ -g kokkos_dualview_gpu --benchmarks=$BENCHMARKS_GPU  # --save-timers
+
+# _____________________________________________________________________________
+#
+# Test Mini-PIC using Kokkos for V100 or A100 GPU on Ruche
+# _____________________________________________________________________________
+
+test_kokkos_views_gpu:
+  # only: *default_run
+  rules:
+    # If not on the master branch and `src/kokkos` has been modified, run the CI
+    - if: $CI_COMMIT_BRANCH != "master"
+      changes:
+        - src/kokkos/*
+        - src/common/*
+        - src/setups/*
+        - src/main.cpp
+        - .gitlab-ci.yml
+        - tests/run.py
+        - validation/*
+        - CMakeLists.txt
+      when: always
+    # If has [run ci] in the commit message, always run the CI
+    - if: $CI_COMMIT_MESSAGE =~ /\[run ci\]/
+      when: always
+    # Do not run if draft or skip ci
+    - if: $CI_COMMIT_REF_NAME =~ /\[draft\]/ || $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+      when: never
+    # If on the master branch, always run the CI
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: always
+  tags:
+    - ruche
+  stage: test
+  # needs: [ test_kokkos_omp ]
+  before_script:
+    - source $WORKDIR/gitlab-ci_runs/env/kokkos_a100
+  script:
+    - cp -r tests tests_kokkos_views_gpu
+    - cd tests_kokkos_views_gpu
+    - srun --nodes=1 --time=00:15:00 -p gpua100 --gres=gpu:1 --exclude=$EXCLUDED_GPUS python3 run.py -c g++ -g kokkos_views_gpu --benchmarks=$BENCHMARKS_GPU  # --save-timers
+
 
 # _____________________________________________________________________________
 #
