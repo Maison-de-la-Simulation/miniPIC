@@ -93,7 +93,7 @@ def validate(evaluate=True, threshold = 1e-10):
 
             xv, yv, zv = np.meshgrid(x_data, y_data, z_data, indexing='ij')
 
-            new_data.append(np.sum(np.abs(data_map) * xv * yv * zv))
+            new_data.append(float(np.sum(np.abs(data_map) * xv * yv * zv)))
 
         print("    - For field {}: {}".format(field, new_data))
 

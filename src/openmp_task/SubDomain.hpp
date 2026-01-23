@@ -72,7 +72,7 @@ public:
                 << std::endl;
 
       for (int ip = 0; ip < patches_.size(); ip++) {
-        operators::interpolate(em_, patches_[ip]);
+        operators::interpolate(params, em_, patches_[ip]);
         operators::push_momentum(patches_[ip], -0.5 * params.dt);
       }
     }
@@ -275,7 +275,8 @@ public:
                   // functions using bin
                   timers.start(timers.interpolate, idx_patch);
 
-                  operators::interpolate_bin(em_,
+                  operators::interpolate_bin(params,
+                                            em_,
                                              patches_[idx_patch].particles_m[is],
                                              is,
                                              init,

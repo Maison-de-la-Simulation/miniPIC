@@ -22,23 +22,19 @@ namespace operators {
 //! \param[in] em  global electromagnetic fields
 //! \param[in] patch  patch data structure
 // ______________________________________________________________________________
-auto interpolate(ElectroMagn &em, Patch &patch) -> void {
+auto interpolate(Params &params, ElectroMagn &em, Patch &patch) -> void {
 
-  const auto inv_dx_m = em.inv_dx_m;
-  const auto inv_dy_m = em.inv_dy_m;
-  const auto inv_dz_m = em.inv_dz_m;
+  const mini_float inv_dx_m = em.inv_dx_m;
+  const mini_float inv_dy_m = em.inv_dy_m;
+  const mini_float inv_dz_m = em.inv_dz_m;
+
+  const mini_float xmin = params.inf_x;
+  const mini_float ymin = params.inf_y;
+  const mini_float zmin = params.inf_z;
 
   for (int is = 0; is < patch.n_species_m; is++) {
 
     const int n_particles = patch.particles_m[is].size();
-
-    Vector<mini_float> &Bxp = patch.particles_m[is].Bx_;
-    Vector<mini_float> &Byp = patch.particles_m[is].By_;
-    Vector<mini_float> &Bzp = patch.particles_m[is].Bz_;
-
-    Field<mini_float> &Bx = em.Bx_m;
-    Field<mini_float> &By = em.By_m;
-    Field<mini_float> &Bz = em.Bz_m;
 
 #if defined(__MINIPIC_SIMD__)
 #pragma omp simd
@@ -46,9 +42,9 @@ auto interpolate(ElectroMagn &em, Patch &patch) -> void {
     for (unsigned int part = 0; part < n_particles; part++) {
 
       // // Calculate normalized positions
-      const auto ixn = patch.particles_m[is].x_h(part) * inv_dx_m;
-      const auto iyn = patch.particles_m[is].y_h(part) * inv_dy_m;
-      const auto izn = patch.particles_m[is].z_h(part) * inv_dz_m;
+      const mini_float ixn = (patch.particles_m[is].x_(part) - xmin) * inv_dx_m;
+      const mini_float iyn = (patch.particles_m[is].y_(part) - ymin) * inv_dy_m;
+      const mini_float izn = (patch.particles_m[is].z_(part) - zmin) * inv_dz_m;
 
       // // Compute indexes in global primal grid
       const unsigned int ixp = static_cast<unsigned int>(floor(ixn));
@@ -60,162 +56,131 @@ auto interpolate(ElectroMagn &em, Patch &patch) -> void {
       const unsigned int iyd = static_cast<unsigned int>(floor(iyn + 0.5));
       const unsigned int izd = static_cast<unsigned int>(floor(izn + 0.5));
 
-      // Compute interpolation coeff, p = primal, d = dual
+      // Compute interpolation distances
+      const mini_float dist_x_p = ixn - ixp;
+      const mini_float dist_y_p = iyn - iyp;
+      const mini_float dist_z_p = izn - izp;
+
+      const mini_float dist_x_d = (ixn + 0.5) - ixd;
+      const mini_float dist_y_d = (iyn + 0.5) - iyd;
+      const mini_float dist_z_d = (izn + 0.5) - izd;
 
       // interpolation electric field
       // Ex (d, p , p)
       {
-
-        const mini_float coeffs[3] = {ixn + 0.5, iyn, izn};
-
         const auto v00 =
-          em.Ex_m(ixd, iyp, izp) * (1 - coeffs[0]) + em.Ex_m(ixd + 1, iyp, izp) * coeffs[0];
+          em.Ex_m(ixd, iyp, izp) * (1 - dist_x_d) + em.Ex_m(ixd + 1, iyp, izp) * dist_x_d;
         const auto v01 =
-          em.Ex_m(ixd, iyp, izp + 1) * (1 - coeffs[0]) + em.Ex_m(ixd + 1, iyp, izp + 1) * coeffs[0];
+          em.Ex_m(ixd, iyp, izp + 1) * (1 - dist_x_d) + em.Ex_m(ixd + 1, iyp, izp + 1) * dist_x_d;
         const auto v10 =
-          em.Ex_m(ixd, iyp + 1, izp) * (1 - coeffs[0]) + em.Ex_m(ixd + 1, iyp + 1, izp) * coeffs[0];
-        const auto v11 = em.Ex_m(ixd, iyp + 1, izp + 1) * (1 - coeffs[0]) +
-                         em.Ex_m(ixd + 1, iyp + 1, izp + 1) * coeffs[0];
-        const auto v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const auto v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          em.Ex_m(ixd, iyp + 1, izp) * (1 - dist_x_d) + em.Ex_m(ixd + 1, iyp + 1, izp) * dist_x_d;
+        const auto v11 = em.Ex_m(ixd, iyp + 1, izp + 1) * (1 - dist_x_d) +
+                         em.Ex_m(ixd + 1, iyp + 1, izp + 1) * dist_x_d;
+        const auto v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+        const auto v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-        patch.particles_m[is].Ex_(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        patch.particles_m[is].Ex_(part) = v0 * (1 - dist_z_p) + v1 * dist_z_p;
       }
 
       // Ey (p, d, p)
       {
-        const mini_float coeffs[3] = {ixn, iyn + 0.5, izn};
-
         const mini_float v00 =
-          em.Ey_m(ixp, iyd, izp) * (1 - coeffs[0]) + em.Ey_m(ixp + 1, iyd, izp) * coeffs[0];
+          em.Ey_m(ixp, iyd, izp) * (1 - dist_x_p) + em.Ey_m(ixp + 1, iyd, izp) * dist_x_p;
         const mini_float v01 =
-          em.Ey_m(ixp, iyd, izp + 1) * (1 - coeffs[0]) + em.Ey_m(ixp + 1, iyd, izp + 1) * coeffs[0];
+          em.Ey_m(ixp, iyd, izp + 1) * (1 - dist_x_p) + em.Ey_m(ixp + 1, iyd, izp + 1) * dist_x_p;
         const mini_float v10 =
-          em.Ey_m(ixp, iyd + 1, izp) * (1 - coeffs[0]) + em.Ey_m(ixp + 1, iyd + 1, izp) * coeffs[0];
-        const mini_float v11 = em.Ey_m(ixp, iyd + 1, izp + 1) * (1 - coeffs[0]) +
-                               em.Ey_m(ixp + 1, iyd + 1, izp + 1) * coeffs[0];
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          em.Ey_m(ixp, iyd + 1, izp) * (1 - dist_x_p) + em.Ey_m(ixp + 1, iyd + 1, izp) * dist_x_p;
+        const mini_float v11 = em.Ey_m(ixp, iyd + 1, izp + 1) * (1 - dist_x_p) +
+                               em.Ey_m(ixp + 1, iyd + 1, izp + 1) * dist_x_p;
+        const mini_float v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+        const mini_float v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-        patch.particles_m[is].Ey_(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        patch.particles_m[is].Ey_(part) = v0 * (1 - dist_z_p) + v1 * dist_z_p;
       }
 
-      // // //particles_m[is].Ey_.d_view(part) = compute_interpolation(ixp, b, izp, coeffs, Ey);
       // Ez (p, p, d)
       {
-        const mini_float coeffs[3] = {ixn, iyn, izn + 0.5};
-
         const mini_float v00 =
-          em.Ez_m(ixp, iyp, izd) * (1 - coeffs[0]) + em.Ez_m(ixp + 1, iyp, izd) * coeffs[0];
+          em.Ez_m(ixp, iyp, izd) * (1 - dist_x_p) + em.Ez_m(ixp + 1, iyp, izd) * dist_x_p;
         const mini_float v01 =
-          em.Ez_m(ixp, iyp, izd + 1) * (1 - coeffs[0]) + em.Ez_m(ixp + 1, iyp, izd + 1) * coeffs[0];
+          em.Ez_m(ixp, iyp, izd + 1) * (1 - dist_x_p) + em.Ez_m(ixp + 1, iyp, izd + 1) * dist_x_p;
         const mini_float v10 =
-          em.Ez_m(ixp, iyp + 1, izd) * (1 - coeffs[0]) + em.Ez_m(ixp + 1, iyp + 1, izd) * coeffs[0];
-        const mini_float v11 = em.Ez_m(ixp, iyp + 1, izd + 1) * (1 - coeffs[0]) +
-                               em.Ez_m(ixp + 1, iyp + 1, izd + 1) * coeffs[0];
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          em.Ez_m(ixp, iyp + 1, izd) * (1 - dist_x_p) + em.Ez_m(ixp + 1, iyp + 1, izd) * dist_x_p;
+        const mini_float v11 = em.Ez_m(ixp, iyp + 1, izd + 1) * (1 - dist_x_p) +
+                               em.Ez_m(ixp + 1, iyp + 1, izd + 1) * dist_x_p;
+        const mini_float v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+        const mini_float v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-        patch.particles_m[is].Ez_(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        patch.particles_m[is].Ez_(part) = v0 * (1 - dist_z_d) + v1 * dist_z_d;
       }
-      // particles_m[is].Ez_.d_view(part) = compute_interpolation(ixp, iyp, g, coeffs, Ez);
 
       // interpolation magnetic field
       // Bx (p, d, d)
       {
-        const mini_float coeffs[3] = {ixn, iyn + 0.5, izn + 0.5};
-
         const mini_float v00 =
-          Bx(ixp, iyd, izd) * (1 - coeffs[0]) + Bx(ixp + 1, iyd, izd) * coeffs[0];
+          em.Bx_m(ixp, iyd, izd) * (1 - dist_x_p) + em.Bx_m(ixp + 1, iyd, izd) * dist_x_p;
         const mini_float v01 =
-          Bx(ixp, iyd, izd + 1) * (1 - coeffs[0]) + Bx(ixp + 1, iyd, izd + 1) * coeffs[0];
+          em.Bx_m(ixp, iyd, izd + 1) * (1 - dist_x_p) + em.Bx_m(ixp + 1, iyd, izd + 1) * dist_x_p;
         const mini_float v10 =
-          Bx(ixp, iyd + 1, izd) * (1 - coeffs[0]) + Bx(ixp + 1, iyd + 1, izd) * coeffs[0];
+          em.Bx_m(ixp, iyd + 1, izd) * (1 - dist_x_p) + em.Bx_m(ixp + 1, iyd + 1, izd) * dist_x_p;
         const mini_float v11 =
-          Bx(ixp, iyd + 1, izd + 1) * (1 - coeffs[0]) + Bx(ixp + 1, iyd + 1, izd + 1) * coeffs[0];
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          em.Bx_m(ixp, iyd + 1, izd + 1) * (1 - dist_x_p) + em.Bx_m(ixp + 1, iyd + 1, izd + 1) * dist_x_p;
+        const mini_float v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+        const mini_float v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-        Bxp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        patch.particles_m[is].Bx_(part) = v0 * (1 - dist_z_d) + v1 * dist_z_d;
       }
-      // particles_m[is].Bx_.d_view(part) = compute_interpolation(ixp, b, g, coeffs, Bx);
 
       // By (d, p, d)
       {
-        const mini_float coeffs[3] = {ixn + 0.5, iyn, izn + 0.5};
-
         const mini_float v00 =
-          By(ixd, iyp, izd) * (1 - coeffs[0]) + By(ixd + 1, iyp, izd) * coeffs[0];
+          em.By_m(ixd, iyp, izd) * (1 - dist_x_d) + em.By_m(ixd + 1, iyp, izd) * dist_x_d;
         const mini_float v01 =
-          By(ixd, iyp, izd + 1) * (1 - coeffs[0]) + By(ixd + 1, iyp, izd + 1) * coeffs[0];
+          em.By_m(ixd, iyp, izd + 1) * (1 - dist_x_d) + em.By_m(ixd + 1, iyp, izd + 1) * dist_x_d;
         const mini_float v10 =
-          By(ixd, iyp + 1, izd) * (1 - coeffs[0]) + By(ixd + 1, iyp + 1, izd) * coeffs[0];
+          em.By_m(ixd, iyp + 1, izd) * (1 - dist_x_d) + em.By_m(ixd + 1, iyp + 1, izd) * dist_x_d;
         const mini_float v11 =
-          By(ixd, iyp + 1, izd + 1) * (1 - coeffs[0]) + By(ixd + 1, iyp + 1, izd + 1) * coeffs[0];
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          em.By_m(ixd, iyp + 1, izd + 1) * (1 - dist_x_d) + em.By_m(ixd + 1, iyp + 1, izd + 1) * dist_x_d;
+        const mini_float v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+        const mini_float v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-        Byp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        patch.particles_m[is].By_(part) = v0 * (1 - dist_z_d) + v1 * dist_z_d;
       }
-      // particles_m[is].By_.d_view(part) = compute_interpolation(a, iyp, g, coeffs, By);
 
       // Bz (d, d, p)
       {
-        const mini_float coeffs[3] = {ixn + 0.5, iyn + 0.5, izn};
-
-        // Bzp(part)              = compute_interpolation(coeffs,
-        //                                   Bz(ixd, iyd, izp),
-        //                                   Bz(ixd, iyd, izp + 1),
-        //                                   Bz(ixd, iyd + 1, izp),
-        //                                   Bz(ixd, iyd + 1, izp + 1),
-        //                                   Bz(ixd + 1, iyd, izp),
-        //                                   Bz(ixd + 1, iyd, izp + 1),
-        //                                   Bz(ixd + 1, iyd + 1, izp),
-        //                                   Bz(ixd + 1, iyd + 1, izp + 1));
-
         const mini_float v00 =
-          Bz(ixd, iyd, izp) * (1 - coeffs[0]) + Bz(ixd + 1, iyd, izp) * coeffs[0];
+          em.Bz_m(ixd, iyd, izp) * (1 - dist_x_d) + em.Bz_m(ixd + 1, iyd, izp) * dist_x_d;
         const mini_float v01 =
-          Bz(ixd, iyd, izp + 1) * (1 - coeffs[0]) + Bz(ixd + 1, iyd, izp + 1) * coeffs[0];
+          em.Bz_m(ixd, iyd, izp + 1) * (1 - dist_x_d) + em.Bz_m(ixd + 1, iyd, izp + 1) * dist_x_d;
         const mini_float v10 =
-          Bz(ixd, iyd + 1, izp) * (1 - coeffs[0]) + Bz(ixd + 1, iyd + 1, izp) * coeffs[0];
+          em.Bz_m(ixd, iyd + 1, izp) * (1 - dist_x_d) + em.Bz_m(ixd + 1, iyd + 1, izp) * dist_x_d;
         const mini_float v11 =
-          Bz(ixd, iyd + 1, izp + 1) * (1 - coeffs[0]) + Bz(ixd + 1, iyd + 1, izp + 1) * coeffs[0];
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          em.Bz_m(ixd, iyd + 1, izp + 1) * (1 - dist_x_d) + em.Bz_m(ixd + 1, iyd + 1, izp + 1) * dist_x_d;
+        const mini_float v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+        const mini_float v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-        Bzp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        patch.particles_m[is].Bz_(part) = v0 * (1 - dist_z_p) + v1 * dist_z_p;
       }
-      // particles_m[is].Bz_.d_view(part) = compute_interpolation(a, b, izp, coeffs, Bz);
     } // End for each particle
-
   } // Species loop
 }
 
-// ______________________________________________________________________________
-//
+// __________________________________________________________
 //! \brief Interpolation operator at the patch level :
-//! interpolate EM fields from global grid for each particle
+//! \param[in] params simulation parameters
 //! \param[in] em  global electromagnetic fields
-//! \param[in] patch  patch data structure
-// ______________________________________________________________________________
-
-//! \brief Interpolation operator at the patch level :
 //! interpolate EM fields from global grid for each particle
-auto interpolate_bin(ElectroMagn &em, Particles<double> &particles, int is, int init, int end)
+auto interpolate_bin(Params &params, ElectroMagn &em, Particles<double> &particles, int is, int init, int end)
   -> void {
 
-  const auto inv_dx_m = em.inv_dx_m;
-  const auto inv_dy_m = em.inv_dy_m;
-  const auto inv_dz_m = em.inv_dz_m;
+  const mini_float inv_dx_m = em.inv_dx_m;
+  const mini_float inv_dy_m = em.inv_dy_m;
+  const mini_float inv_dz_m = em.inv_dz_m;
 
-  Vector<mini_float> &Bxp = particles.Bx_;
-  Vector<mini_float> &Byp = particles.By_;
-  Vector<mini_float> &Bzp = particles.Bz_;
-
-  Field<mini_float> &Bx = em.Bx_m;
-  Field<mini_float> &By = em.By_m;
-  Field<mini_float> &Bz = em.Bz_m;
+  const mini_float xmin = params.inf_x;
+  const mini_float ymin = params.inf_y;
+  const mini_float zmin = params.inf_z;
 
 #if defined(__MINIPIC_SIMD__)
 #pragma omp simd
@@ -223,9 +188,9 @@ auto interpolate_bin(ElectroMagn &em, Particles<double> &particles, int is, int 
   for (int part = init; part < end; part++) {
 
     // // Calculate normalized positions
-    const auto ixn = particles.x_h(part) * inv_dx_m;
-    const auto iyn = particles.y_h(part) * inv_dy_m;
-    const auto izn = particles.z_h(part) * inv_dz_m;
+    const auto ixn = (particles.x_h(part) - xmin) * inv_dx_m;
+    const auto iyn = (particles.y_h(part) - ymin) * inv_dy_m;
+    const auto izn = (particles.z_h(part) - zmin) * inv_dz_m;
 
     // // Compute indexes in global primal grid
     const unsigned int ixp = static_cast<unsigned int>(floor(ixn));
@@ -237,133 +202,111 @@ auto interpolate_bin(ElectroMagn &em, Particles<double> &particles, int is, int 
     const unsigned int iyd = static_cast<unsigned int>(floor(iyn + 0.5));
     const unsigned int izd = static_cast<unsigned int>(floor(izn + 0.5));
 
-    // Compute interpolation coeff, p = primal, d = dual
+    // Compute interpolation distances
+    const mini_float dist_x_p = ixn - ixp;
+    const mini_float dist_y_p = iyn - iyp;
+    const mini_float dist_z_p = izn - izp;
+
+    const mini_float dist_x_d = (ixn + 0.5) - ixd;
+    const mini_float dist_y_d = (iyn + 0.5) - iyd;
+    const mini_float dist_z_d = (izn + 0.5) - izd;
 
     // interpolation electric field
     // Ex (d, p , p)
     {
-
-      const mini_float coeffs[3] = {ixn + 0.5, iyn, izn};
-
       const auto v00 =
-        em.Ex_m(ixd, iyp, izp) * (1 - coeffs[0]) + em.Ex_m(ixd + 1, iyp, izp) * coeffs[0];
+        em.Ex_m(ixd, iyp, izp) * (1 - dist_x_d) + em.Ex_m(ixd + 1, iyp, izp) * dist_x_d;
       const auto v01 =
-        em.Ex_m(ixd, iyp, izp + 1) * (1 - coeffs[0]) + em.Ex_m(ixd + 1, iyp, izp + 1) * coeffs[0];
+        em.Ex_m(ixd, iyp, izp + 1) * (1 - dist_x_d) + em.Ex_m(ixd + 1, iyp, izp + 1) * dist_x_d;
       const auto v10 =
-        em.Ex_m(ixd, iyp + 1, izp) * (1 - coeffs[0]) + em.Ex_m(ixd + 1, iyp + 1, izp) * coeffs[0];
-      const auto v11 = em.Ex_m(ixd, iyp + 1, izp + 1) * (1 - coeffs[0]) +
-                       em.Ex_m(ixd + 1, iyp + 1, izp + 1) * coeffs[0];
-      const auto v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-      const auto v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+        em.Ex_m(ixd, iyp + 1, izp) * (1 - dist_x_d) + em.Ex_m(ixd + 1, iyp + 1, izp) * dist_x_d;
+      const auto v11 = em.Ex_m(ixd, iyp + 1, izp + 1) * (1 - dist_x_d) +
+               em.Ex_m(ixd + 1, iyp + 1, izp + 1) * dist_x_d;
+      const auto v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+      const auto v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-      particles.Ex_(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+      particles.Ex_(part) = v0 * (1 - dist_z_p) + v1 * dist_z_p;
     }
 
     // Ey (p, d, p)
     {
-      const mini_float coeffs[3] = {ixn, iyn + 0.5, izn};
-
       const mini_float v00 =
-        em.Ey_m(ixp, iyd, izp) * (1 - coeffs[0]) + em.Ey_m(ixp + 1, iyd, izp) * coeffs[0];
+        em.Ey_m(ixp, iyd, izp) * (1 - dist_x_p) + em.Ey_m(ixp + 1, iyd, izp) * dist_x_p;
       const mini_float v01 =
-        em.Ey_m(ixp, iyd, izp + 1) * (1 - coeffs[0]) + em.Ey_m(ixp + 1, iyd, izp + 1) * coeffs[0];
+        em.Ey_m(ixp, iyd, izp + 1) * (1 - dist_x_p) + em.Ey_m(ixp + 1, iyd, izp + 1) * dist_x_p;
       const mini_float v10 =
-        em.Ey_m(ixp, iyd + 1, izp) * (1 - coeffs[0]) + em.Ey_m(ixp + 1, iyd + 1, izp) * coeffs[0];
-      const mini_float v11 = em.Ey_m(ixp, iyd + 1, izp + 1) * (1 - coeffs[0]) +
-                             em.Ey_m(ixp + 1, iyd + 1, izp + 1) * coeffs[0];
-      const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-      const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+        em.Ey_m(ixp, iyd + 1, izp) * (1 - dist_x_p) + em.Ey_m(ixp + 1, iyd + 1, izp) * dist_x_p;
+      const mini_float v11 = em.Ey_m(ixp, iyd + 1, izp + 1) * (1 - dist_x_p) +
+                             em.Ey_m(ixp + 1, iyd + 1, izp + 1) * dist_x_p;
+      const mini_float v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+      const mini_float v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-      particles.Ey_(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+      particles.Ey_(part) = v0 * (1 - dist_z_p) + v1 * dist_z_p;
     }
-
-    // // //particles.Ey_.d_view(part) = compute_interpolation(ixp, b, izp, coeffs, Ey);
     // Ez (p, p, d)
     {
-      const mini_float coeffs[3] = {ixn, iyn, izn + 0.5};
-
       const mini_float v00 =
-        em.Ez_m(ixp, iyp, izd) * (1 - coeffs[0]) + em.Ez_m(ixp + 1, iyp, izd) * coeffs[0];
+        em.Ez_m(ixp, iyp, izd) * (1 - dist_x_p) + em.Ez_m(ixp + 1, iyp, izd) * dist_x_p;
       const mini_float v01 =
-        em.Ez_m(ixp, iyp, izd + 1) * (1 - coeffs[0]) + em.Ez_m(ixp + 1, iyp, izd + 1) * coeffs[0];
+        em.Ez_m(ixp, iyp, izd + 1) * (1 - dist_x_p) + em.Ez_m(ixp + 1, iyp, izd + 1) * dist_x_p;
       const mini_float v10 =
-        em.Ez_m(ixp, iyp + 1, izd) * (1 - coeffs[0]) + em.Ez_m(ixp + 1, iyp + 1, izd) * coeffs[0];
-      const mini_float v11 = em.Ez_m(ixp, iyp + 1, izd + 1) * (1 - coeffs[0]) +
-                             em.Ez_m(ixp + 1, iyp + 1, izd + 1) * coeffs[0];
-      const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-      const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+        em.Ez_m(ixp, iyp + 1, izd) * (1 - dist_x_p) + em.Ez_m(ixp + 1, iyp + 1, izd) * dist_x_p;
+      const mini_float v11 = em.Ez_m(ixp, iyp + 1, izd + 1) * (1 - dist_x_p) +
+                             em.Ez_m(ixp + 1, iyp + 1, izd + 1) * dist_x_p;
+      const mini_float v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+      const mini_float v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-      particles.Ez_(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+      particles.Ez_(part) = v0 * (1 - dist_z_d) + v1 * dist_z_d;
     }
-    // particles.Ez_.d_view(part) = compute_interpolation(ixp, iyp, g, coeffs, Ez);
 
     // interpolation magnetic field
     // Bx (p, d, d)
     {
-      const mini_float coeffs[3] = {ixn, iyn + 0.5, izn + 0.5};
-
       const mini_float v00 =
-        Bx(ixp, iyd, izd) * (1 - coeffs[0]) + Bx(ixp + 1, iyd, izd) * coeffs[0];
+        em.Bx_m(ixp, iyd, izd) * (1 - dist_x_p) + em.Bx_m(ixp + 1, iyd, izd) * dist_x_p;
       const mini_float v01 =
-        Bx(ixp, iyd, izd + 1) * (1 - coeffs[0]) + Bx(ixp + 1, iyd, izd + 1) * coeffs[0];
+        em.Bx_m(ixp, iyd, izd + 1) * (1 - dist_x_p) + em.Bx_m(ixp + 1, iyd, izd + 1) * dist_x_p;
       const mini_float v10 =
-        Bx(ixp, iyd + 1, izd) * (1 - coeffs[0]) + Bx(ixp + 1, iyd + 1, izd) * coeffs[0];
+        em.Bx_m(ixp, iyd + 1, izd) * (1 - dist_x_p) + em.Bx_m(ixp + 1, iyd + 1, izd) * dist_x_p;
       const mini_float v11 =
-        Bx(ixp, iyd + 1, izd + 1) * (1 - coeffs[0]) + Bx(ixp + 1, iyd + 1, izd + 1) * coeffs[0];
-      const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-      const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+        em.Bx_m(ixp, iyd + 1, izd + 1) * (1 - dist_x_p) + em.Bx_m(ixp + 1, iyd + 1, izd + 1) * dist_x_p;
+      const mini_float v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+      const mini_float v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-      Bxp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+      particles.Bx_(part) = v0 * (1 - dist_z_d) + v1 * dist_z_d;
     }
-    // particles.Bx_.d_view(part) = compute_interpolation(ixp, b, g, coeffs, Bx);
 
     // By (d, p, d)
     {
-      const mini_float coeffs[3] = {ixn + 0.5, iyn, izn + 0.5};
-
       const mini_float v00 =
-        By(ixd, iyp, izd) * (1 - coeffs[0]) + By(ixd + 1, iyp, izd) * coeffs[0];
+        em.By_m(ixd, iyp, izd) * (1 - dist_x_d) + em.By_m(ixd + 1, iyp, izd) * dist_x_d;
       const mini_float v01 =
-        By(ixd, iyp, izd + 1) * (1 - coeffs[0]) + By(ixd + 1, iyp, izd + 1) * coeffs[0];
+        em.By_m(ixd, iyp, izd + 1) * (1 - dist_x_d) + em.By_m(ixd + 1, iyp, izd + 1) * dist_x_d;
       const mini_float v10 =
-        By(ixd, iyp + 1, izd) * (1 - coeffs[0]) + By(ixd + 1, iyp + 1, izd) * coeffs[0];
+        em.By_m(ixd, iyp + 1, izd) * (1 - dist_x_d) + em.By_m(ixd + 1, iyp + 1, izd) * dist_x_d;
       const mini_float v11 =
-        By(ixd, iyp + 1, izd + 1) * (1 - coeffs[0]) + By(ixd + 1, iyp + 1, izd + 1) * coeffs[0];
-      const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-      const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+        em.By_m(ixd, iyp + 1, izd + 1) * (1 - dist_x_d) + em.By_m(ixd + 1, iyp + 1, izd + 1) * dist_x_d;
+      const mini_float v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+      const mini_float v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-      Byp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+      particles.By_(part) = v0 * (1 - dist_z_d) + v1 * dist_z_d;
     }
-    // particles.By_.d_view(part) = compute_interpolation(a, iyp, g, coeffs, By);
 
     // Bz (d, d, p)
     {
-      const mini_float coeffs[3] = {ixn + 0.5, iyn + 0.5, izn};
-
-      // Bzp(part)              = compute_interpolation(coeffs,
-      //                                   Bz(ixd, iyd, izp),
-      //                                   Bz(ixd, iyd, izp + 1),
-      //                                   Bz(ixd, iyd + 1, izp),
-      //                                   Bz(ixd, iyd + 1, izp + 1),
-      //                                   Bz(ixd + 1, iyd, izp),
-      //                                   Bz(ixd + 1, iyd, izp + 1),
-      //                                   Bz(ixd + 1, iyd + 1, izp),
-      //                                   Bz(ixd + 1, iyd + 1, izp + 1));
-
       const mini_float v00 =
-        Bz(ixd, iyd, izp) * (1 - coeffs[0]) + Bz(ixd + 1, iyd, izp) * coeffs[0];
+        em.Bz_m(ixd, iyd, izp) * (1 - dist_x_d) + em.Bz_m(ixd + 1, iyd, izp) * dist_x_d;
       const mini_float v01 =
-        Bz(ixd, iyd, izp + 1) * (1 - coeffs[0]) + Bz(ixd + 1, iyd, izp + 1) * coeffs[0];
+        em.Bz_m(ixd, iyd, izp + 1) * (1 - dist_x_d) + em.Bz_m(ixd + 1, iyd, izp + 1) * dist_x_d;
       const mini_float v10 =
-        Bz(ixd, iyd + 1, izp) * (1 - coeffs[0]) + Bz(ixd + 1, iyd + 1, izp) * coeffs[0];
+        em.Bz_m(ixd, iyd + 1, izp) * (1 - dist_x_d) + em.Bz_m(ixd + 1, iyd + 1, izp) * dist_x_d;
       const mini_float v11 =
-        Bz(ixd, iyd + 1, izp + 1) * (1 - coeffs[0]) + Bz(ixd + 1, iyd + 1, izp + 1) * coeffs[0];
-      const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-      const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+        em.Bz_m(ixd, iyd + 1, izp + 1) * (1 - dist_x_d) + em.Bz_m(ixd + 1, iyd + 1, izp + 1) * dist_x_d;
+      const mini_float v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+      const mini_float v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-      Bzp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+      particles.Bz_(part) = v0 * (1 - dist_z_p) + v1 * dist_z_p;
     }
-    // particles.Bz_.d_view(part) = compute_interpolation(a, b, izp, coeffs, Bz);
   } // End for each particle
 }
 

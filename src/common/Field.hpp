@@ -37,6 +37,12 @@ public:
   //! Primal 0 / dual 1
   int dual_x_m, dual_y_m, dual_z_m;
 
+  //! offset to global grid origin
+  //! if the direction is dual, the offset is relative to the dual grid
+  int ix_offset_;
+  int iy_offset_;
+  int iz_offset_;
+
   //! Data linearized, 3rd dimension faster
 
 #if defined(__MINIPIC_KOKKOS__)
@@ -96,7 +102,9 @@ public:
   // _________________________________________________________________________________________
   //! \brief Default constructor - create an empty field
   // _________________________________________________________________________________________
-  Field() : name_m("empty"), nx_m(0), ny_m(0), nz_m(0), dual_x_m(0), dual_y_m(0), dual_z_m(0) {
+  Field() : name_m("empty"), nx_m(0), ny_m(0), nz_m(0), 
+  dual_x_m(0), dual_y_m(0), dual_z_m(0),
+  ix_offset_(0), iy_offset_(0), iz_offset_(0) {
 
     nynz_ = 0;
 
@@ -327,6 +335,9 @@ public:
                 const int dual_x = 0,
                 const int dual_y = 0,
                 const int dual_z = 0,
+                const int ix_offset = 0,
+                const int iy_offset = 0,
+                const int iz_offset = 0,
                 std::string name = "") {
 
     nx_m = nx;
@@ -338,6 +349,11 @@ public:
     dual_x_m = dual_x;
     dual_y_m = dual_y;
     dual_z_m = dual_z;
+
+    ix_offset_ = ix_offset;
+    iy_offset_ = iy_offset;
+    iz_offset_ = iz_offset;
+
     name_m   = name;
 
     if (nx_m * ny_m * nz_m == 0) {

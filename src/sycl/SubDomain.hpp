@@ -70,7 +70,7 @@ public:
                 << std::endl;
 
       for (int ip = 0; ip < patches_.size(); ip++) {
-        operators::interpolate(em_, patches_[ip], backend);
+        operators::interpolate(params, em_, patches_[ip], backend);
         operators::push_momentum(patches_[ip], backend, -0.5 * params.dt);
       }
     }
@@ -226,7 +226,7 @@ public:
       profiler.start(INTERPOLATE);
 
       DEBUG("start interpolate");
-      operators::interpolate(em_, patches_[idx_patch], backend);
+      operators::interpolate(params, em_, patches_[idx_patch], backend);
 
       DEBUG("stop interpolate");
       timers.stop(timers.interpolate, idx_patch);

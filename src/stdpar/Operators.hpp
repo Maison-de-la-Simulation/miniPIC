@@ -28,10 +28,15 @@ namespace operators {
 //! \param[in] em  global electromagnetic fields
 //! \param[in] patch  patch data structure
 // ______________________________________________________________________________
-auto interpolate(ElectroMagn &em, Patch &patch) -> void {
+auto interpolate(Params &params, ElectroMagn &em, Patch &patch) -> void {
+
   const mini_float inv_dx_m = em.inv_dx_m;
   const mini_float inv_dy_m = em.inv_dy_m;
   const mini_float inv_dz_m = em.inv_dz_m;
+
+  const mini_float xmin = params.inf_x;
+  const mini_float ymin = params.inf_y;
+  const mini_float zmin = params.inf_z;
 
   const auto ny_Ex = em.Ex_m.ny(), nz_Ex = em.Ex_m.nz(), nynz_Ex = nz_Ex * ny_Ex;
   const auto ny_Ey = em.Ey_m.ny(), nz_Ey = em.Ey_m.nz(), nynz_Ey = nz_Ey * ny_Ey;
@@ -68,10 +73,11 @@ auto interpolate(ElectroMagn &em, Patch &patch) -> void {
     mini_float * const __restrict__ Bzp = patch.particles_m[is].Bz_.get_raw_pointer(minipic::device);
 
     std::for_each(policy, counting_iterator<size_t>(0), counting_iterator<size_t>(n_particles), [=](size_t ip) {
+
       // // Calculate normalized positions
-      const mini_float ixn = x[ip] * inv_dx_m;
-      const mini_float iyn = y[ip] * inv_dy_m;
-      const mini_float izn = z[ip] * inv_dz_m;
+      const mini_float ixn = (x[ip]-xmin) * inv_dx_m;
+      const mini_float iyn = (y[ip]-ymin) * inv_dy_m;
+      const mini_float izn = (z[ip]-zmin) * inv_dz_m;
 
       // // Compute indexes in global primal grid
       const unsigned int ixp = static_cast<unsigned int>(floor(ixn));
@@ -83,121 +89,115 @@ auto interpolate(ElectroMagn &em, Patch &patch) -> void {
       const unsigned int iyd = static_cast<unsigned int>(floor(iyn + 0.5));
       const unsigned int izd = static_cast<unsigned int>(floor(izn + 0.5));
 
-      // Compute interpolation coeff, p = primal, d = dual
+      // Compute interpolation distances
+      const mini_float dist_x_p = ixn - ixp;
+      const mini_float dist_y_p = iyn - iyp;
+      const mini_float dist_z_p = izn - izp;
+
+      const mini_float dist_x_d = (ixn + 0.5) - ixd;
+      const mini_float dist_y_d = (iyn + 0.5) - iyd;
+      const mini_float dist_z_d = (izn + 0.5) - izd;
+
       // interpolation electric field
       // Ex (d, p , p)
       {
-        const mini_float coeffs[3] = {ixn + 0.5, iyn, izn};
+        const auto v00 = Ex[ixd * nynz_Ex + iyp * nz_Ex + izp] * (1 - dist_x_d) +
+                         Ex[(ixd + 1) * nynz_Ex + iyp * nz_Ex + izp] * dist_x_d;
+        const auto v01 = Ex[ixd * nynz_Ex + iyp * nz_Ex + izp + 1] * (1 - dist_x_d) +
+                         Ex[(ixd + 1) * nynz_Ex + iyp * nz_Ex + izp + 1] * dist_x_d;
+        const auto v10 = Ex[ixd * nynz_Ex + (iyp + 1) * nz_Ex + izp] * (1 - dist_x_d) +
+                         Ex[(ixd + 1) * nynz_Ex + (iyp + 1) * nz_Ex + izp] * dist_x_d;
+        const auto v11 = Ex[ixd * nynz_Ex + (iyp + 1) * nz_Ex + izp + 1] * (1 - dist_x_d) +
+                         Ex[(ixd + 1) * nynz_Ex + (iyp + 1) * nz_Ex + izp + 1] * dist_x_d;
 
-        const auto v00 = Ex[ixd * nynz_Ex + iyp * nz_Ex + izp] * (1 - coeffs[0]) +
-                         Ex[(ixd + 1) * nynz_Ex + iyp * nz_Ex + izp] * coeffs[0];
-        const auto v01 = Ex[ixd * nynz_Ex + iyp * nz_Ex + izp + 1] * (1 - coeffs[0]) +
-                         Ex[(ixd + 1) * nynz_Ex + iyp * nz_Ex + izp + 1] * coeffs[0];
-        const auto v10 = Ex[ixd * nynz_Ex + (iyp + 1) * nz_Ex + izp] * (1 - coeffs[0]) +
-                         Ex[(ixd + 1) * nynz_Ex + (iyp + 1) * nz_Ex + izp] * coeffs[0];
-        const auto v11 = Ex[ixd * nynz_Ex + (iyp + 1) * nz_Ex + izp + 1] * (1 - coeffs[0]) +
-                         Ex[(ixd + 1) * nynz_Ex + (iyp + 1) * nz_Ex + izp + 1] * coeffs[0];
+        const auto v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+        const auto v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-        const auto v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const auto v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
-
-        Exp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Exp[ip] = v0 * (1 - dist_z_p) + v1 * dist_z_p;
       }
 
       // Ey (p, d, p)
       {
-        const mini_float coeffs[3] = {ixn, iyn + 0.5, izn};
+        const mini_float v00 = Ey[ixp * nynz_Ey + iyd * nz_Ey + izp] * (1 - dist_x_p) +
+                               Ey[(ixp + 1) * nynz_Ey + iyd * nz_Ey + izp] * dist_x_p;
+        const mini_float v01 = Ey[ixp * nynz_Ey + iyd * nz_Ey + izp + 1] * (1 - dist_x_p) +
+                               Ey[(ixp + 1) * nynz_Ey + iyd * nz_Ey + izp + 1] * dist_x_p;
+        const mini_float v10 = Ey[ixp * nynz_Ey + (iyd + 1) * nz_Ey + izp] * (1 - dist_x_p) +
+                               Ey[(ixp + 1) * nynz_Ey + (iyd + 1) * nz_Ey + izp] * dist_x_p;
+        const mini_float v11 = Ey[ixp * nynz_Ey + (iyd + 1) * nz_Ey + izp + 1] * (1 - dist_x_p) +
+                               Ey[(ixp + 1) * nynz_Ey + (iyd + 1) * nz_Ey + izp + 1] * dist_x_p;
 
-        const mini_float v00 = Ey[ixp * nynz_Ey + iyd * nz_Ey + izp] * (1 - coeffs[0]) +
-                               Ey[(ixp + 1) * nynz_Ey + iyd * nz_Ey + izp] * coeffs[0];
-        const mini_float v01 = Ey[ixp * nynz_Ey + iyd * nz_Ey + izp + 1] * (1 - coeffs[0]) +
-                               Ey[(ixp + 1) * nynz_Ey + iyd * nz_Ey + izp + 1] * coeffs[0];
-        const mini_float v10 = Ey[ixp * nynz_Ey + (iyd + 1) * nz_Ey + izp] * (1 - coeffs[0]) +
-                               Ey[(ixp + 1) * nynz_Ey + (iyd + 1) * nz_Ey + izp] * coeffs[0];
-        const mini_float v11 = Ey[ixp * nynz_Ey + (iyd + 1) * nz_Ey + izp + 1] * (1 - coeffs[0]) +
-                               Ey[(ixp + 1) * nynz_Ey + (iyd + 1) * nz_Ey + izp + 1] * coeffs[0];
+        const mini_float v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+        const mini_float v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
-
-        Eyp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Eyp[ip] = v0 * (1 - dist_z_p) + v1 * dist_z_p;
       }
 
       // Ez (p, p, d)
       {
-        const mini_float coeffs[3] = {ixn, iyn, izn + 0.5};
+        const mini_float v00 = Ez[ixp * nynz_Ez + iyp * nz_Ez + izd] * (1 - dist_x_p) +
+                               Ez[(ixp + 1) * nynz_Ez + iyp * nz_Ez + izd] * dist_x_p;
+        const mini_float v01 = Ez[ixp * nynz_Ez + iyp * nz_Ez + izd + 1] * (1 - dist_x_p) +
+                               Ez[(ixp + 1) * nynz_Ez + iyp * nz_Ez + izd + 1] * dist_x_p;
+        const mini_float v10 = Ez[ixp * nynz_Ez + (iyp + 1) * nz_Ez + izd] * (1 - dist_x_p) +
+                               Ez[(ixp + 1) * nynz_Ez + (iyp + 1) * nz_Ez + izd] * dist_x_p;
+        const mini_float v11 = Ez[ixp * nynz_Ez + (iyp + 1) * nz_Ez + izd + 1] * (1 - dist_x_p) +
+                               Ez[(ixp + 1) * nynz_Ez + (iyp + 1) * nz_Ez + izd + 1] * dist_x_p;
 
-        const mini_float v00 = Ez[ixp * nynz_Ez + iyp * nz_Ez + izd] * (1 - coeffs[0]) +
-                               Ez[(ixp + 1) * nynz_Ez + iyp * nz_Ez + izd] * coeffs[0];
-        const mini_float v01 = Ez[ixp * nynz_Ez + iyp * nz_Ez + izd + 1] * (1 - coeffs[0]) +
-                               Ez[(ixp + 1) * nynz_Ez + iyp * nz_Ez + izd + 1] * coeffs[0];
-        const mini_float v10 = Ez[ixp * nynz_Ez + (iyp + 1) * nz_Ez + izd] * (1 - coeffs[0]) +
-                               Ez[(ixp + 1) * nynz_Ez + (iyp + 1) * nz_Ez + izd] * coeffs[0];
-        const mini_float v11 = Ez[ixp * nynz_Ez + (iyp + 1) * nz_Ez + izd + 1] * (1 - coeffs[0]) +
-                               Ez[(ixp + 1) * nynz_Ez + (iyp + 1) * nz_Ez + izd + 1] * coeffs[0];
+        const mini_float v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+        const mini_float v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
-
-        Ezp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Ezp[ip] = v0 * (1 - dist_z_d) + v1 * dist_z_d;
       }
 
       // interpolation magnetic field
       // Bx [p, d, d)
       {
-        const mini_float coeffs[3] = {ixn, iyn + 0.5, izn + 0.5};
+        const mini_float v00 = Bx[ixp * nynz_Bx + iyd * nz_Bx + izd] * (1 - dist_x_p) +
+                               Bx[(ixp + 1) * nynz_Bx + iyd * nz_Bx + izd] * dist_x_p;
+        const mini_float v01 = Bx[ixp * nynz_Bx + iyd * nz_Bx + izd + 1] * (1 - dist_x_p) +
+                               Bx[(ixp + 1) * nynz_Bx + iyd * nz_Bx + izd + 1] * dist_x_p;
+        const mini_float v10 = Bx[ixp * nynz_Bx + (iyd + 1) * nz_Bx + izd] * (1 - dist_x_p) +
+                               Bx[(ixp + 1) * nynz_Bx + (iyd + 1) * nz_Bx + izd] * dist_x_p;
+        const mini_float v11 = Bx[ixp * nynz_Bx + (iyd + 1) * nz_Bx + izd + 1] * (1 - dist_x_p) +
+                               Bx[(ixp + 1) * nynz_Bx + (iyd + 1) * nz_Bx + izd + 1] * dist_x_p;
 
-        const mini_float v00 = Bx[ixp * nynz_Bx + iyd * nz_Bx + izd] * (1 - coeffs[0]) +
-                               Bx[(ixp + 1) * nynz_Bx + iyd * nz_Bx + izd] * coeffs[0];
-        const mini_float v01 = Bx[ixp * nynz_Bx + iyd * nz_Bx + izd + 1] * (1 - coeffs[0]) +
-                               Bx[(ixp + 1) * nynz_Bx + iyd * nz_Bx + izd + 1] * coeffs[0];
-        const mini_float v10 = Bx[ixp * nynz_Bx + (iyd + 1) * nz_Bx + izd] * (1 - coeffs[0]) +
-                               Bx[(ixp + 1) * nynz_Bx + (iyd + 1) * nz_Bx + izd] * coeffs[0];
-        const mini_float v11 = Bx[ixp * nynz_Bx + (iyd + 1) * nz_Bx + izd + 1] * (1 - coeffs[0]) +
-                               Bx[(ixp + 1) * nynz_Bx + (iyd + 1) * nz_Bx + izd + 1] * coeffs[0];
+        const mini_float v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+        const mini_float v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
-
-        Bxp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Bxp[ip] = v0 * (1 - dist_z_d) + v1 * dist_z_d;
       }
 
       // By [d, p, d)
       {
-        const mini_float coeffs[3] = {ixn + 0.5, iyn, izn + 0.5};
-
-        const mini_float v00 = By[ixd * nynz_By + iyp * nz_By + izd] * (1 - coeffs[0]) +
-                               By[(ixd + 1) * nynz_By + iyp * nz_By + izd] * coeffs[0];
-        const mini_float v01 = By[ixd * nynz_By + iyp * nz_By + izd + 1] * (1 - coeffs[0]) +
-                               By[(ixd + 1) * nynz_By + iyp * nz_By + izd + 1] * coeffs[0];
-        const mini_float v10 = By[ixd * nynz_By + (iyp + 1) * nz_By + izd] * (1 - coeffs[0]) +
-                               By[(ixd + 1) * nynz_By + (iyp + 1) * nz_By + izd] * coeffs[0];
-        const mini_float v11 = By[ixd * nynz_By + (iyp + 1) * nz_By + izd + 1] * (1 - coeffs[0]) +
-                               By[(ixd + 1) * nynz_By + (iyp + 1) * nz_By + izd + 1] * coeffs[0];
-
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
-
-        Byp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        const mini_float v00 = By[ixd * nynz_By + iyp * nz_By + izd] * (1 - dist_x_d) +
+                               By[(ixd + 1) * nynz_By + iyp * nz_By + izd] * dist_x_d;
+        const mini_float v01 = By[ixd * nynz_By + iyp * nz_By + izd + 1] * (1 - dist_x_d) +
+                               By[(ixd + 1) * nynz_By + iyp * nz_By + izd + 1] * dist_x_d;
+        const mini_float v10 = By[ixd * nynz_By + (iyp + 1) * nz_By + izd] * (1 - dist_x_d) +
+                               By[(ixd + 1) * nynz_By + (iyp + 1) * nz_By + izd] * dist_x_d;
+        const mini_float v11 = By[ixd * nynz_By + (iyp + 1) * nz_By + izd + 1] * (1 - dist_x_d) +
+                               By[(ixd + 1) * nynz_By + (iyp + 1) * nz_By + izd + 1] * dist_x_d;
+        const mini_float v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+        const mini_float v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
+        Byp[ip] = v0 * (1 - dist_z_d) + v1 * dist_z_d;
       }
 
       // Bz (d, d, p)
       {
-        const mini_float coeffs[3] = {ixn + 0.5, iyn + 0.5, izn};
+        const mini_float v00 = Bz[ixd * nynz_Bz + iyd * nz_Bz + izp] * (1 - dist_x_d) +
+                               Bz[(ixd + 1) * nynz_Bz + iyd * nz_Bz + izp] * dist_x_d;
+        const mini_float v01 = Bz[ixd * nynz_Bz + iyd * nz_Bz + izp + 1] * (1 - dist_x_d) +
+                               Bz[(ixd + 1) * nynz_Bz + iyd * nz_Bz + izp + 1] * dist_x_d;
+        const mini_float v10 = Bz[ixd * nynz_Bz + (iyd + 1) * nz_Bz + izp] * (1 - dist_x_d) +
+                               Bz[(ixd + 1) * nynz_Bz + (iyd + 1) * nz_Bz + izp] * dist_x_d;
+        const mini_float v11 = Bz[ixd * nynz_Bz + (iyd + 1) * nz_Bz + izp + 1] * (1 - dist_x_d) +
+                               Bz[(ixd + 1) * nynz_Bz + (iyd + 1) * nz_Bz + izp + 1] * dist_x_d;
 
-        const mini_float v00 = Bz[ixd * nynz_Bz + iyd * nz_Bz + izp] * (1 - coeffs[0]) +
-                               Bz[(ixd + 1) * nynz_Bz + iyd * nz_Bz + izp] * coeffs[0];
-        const mini_float v01 = Bz[ixd * nynz_Bz + iyd * nz_Bz + izp + 1] * (1 - coeffs[0]) +
-                               Bz[(ixd + 1) * nynz_Bz + iyd * nz_Bz + izp + 1] * coeffs[0];
-        const mini_float v10 = Bz[ixd * nynz_Bz + (iyd + 1) * nz_Bz + izp] * (1 - coeffs[0]) +
-                               Bz[(ixd + 1) * nynz_Bz + (iyd + 1) * nz_Bz + izp] * coeffs[0];
-        const mini_float v11 = Bz[ixd * nynz_Bz + (iyd + 1) * nz_Bz + izp + 1] * (1 - coeffs[0]) +
-                               Bz[(ixd + 1) * nynz_Bz + (iyd + 1) * nz_Bz + izp + 1] * coeffs[0];
+        const mini_float v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+        const mini_float v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-        const mini_float v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const mini_float v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
-
-        Bzp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Bzp[ip] = v0 * (1 - dist_z_p) + v1 * dist_z_p;
       }
     });
 

@@ -6,6 +6,8 @@
 
 cmake_minimum_required (VERSION 3.5)
 
+cmake_policy(SET CMP0074 NEW)
+
 message(" __________________________________________________________________ \n")
 message(" CMakeList for Mini-PIC")
 message(" __________________________________________________________________ \n")

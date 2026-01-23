@@ -17,11 +17,15 @@ namespace operators {
 //! \param[in] em  global electromagnetic fields
 //! \param[in] patch  patch data structure
 // ______________________________________________________________________________
-auto interpolate(ElectroMagn &em, Patch &patch) -> void {
+auto interpolate(Params &params, ElectroMagn &em, Patch &patch) -> void {
 
   const auto inv_dx_m = em.inv_dx_m;
   const auto inv_dy_m = em.inv_dy_m;
   const auto inv_dz_m = em.inv_dz_m;
+
+  const mini_float xmin = params.inf_x;
+  const mini_float ymin = params.inf_y;
+  const mini_float zmin = params.inf_z;
 
   for (int is = 0; is < patch.n_species_m; is++) {
 
@@ -78,9 +82,9 @@ auto interpolate(ElectroMagn &em, Patch &patch) -> void {
       KOKKOS_LAMBDA(const size_t part) {
 
         // Calculate normalized positions
-        const double ixn = x(part) * inv_dx_m;
-        const double iyn = y(part) * inv_dy_m;
-        const double izn = z(part) * inv_dz_m;
+        const double ixn = (x(part) - xmin) * inv_dx_m;
+        const double iyn = (y(part) - ymin) * inv_dy_m;
+        const double izn = (z(part) - zmin) * inv_dz_m;
 
         // Compute indexes in global primal grid
         const unsigned int ixp = Kokkos::floor(ixn);
@@ -92,182 +96,111 @@ auto interpolate(ElectroMagn &em, Patch &patch) -> void {
         const unsigned int iyd = Kokkos::floor(iyn + 0.5);
         const unsigned int izd = Kokkos::floor(izn + 0.5);
 
-        // Compute interpolation coeff, p = primal, d = dual
+        // Compute distances for interpolation
+        const double dist_x_p = ixn - ixp;
+        const double dist_y_p = iyn - iyp;
+        const double dist_z_p = izn - izp;
 
-        double coeffs[3] = {ixn + 0.5, iyn, izn};
+        const double dist_x_d = (ixn + 0.5) - ixd;
+        const double dist_y_d = (iyn + 0.5) - iyd;
+        const double dist_z_d = (izn + 0.5) - izd;
 
-        // interpolation electric field
         // Ex (d, p , p)
-        // {
-        //   const double coeffs[3] = {ixn + 0.5, iyn, izn};
-        //   Exp(part)              = compute_interpolation(coeffs,
-        //                                     Ex(ixd, iyp, izp),
-        //                                     Ex(ixd, iyp, izp + 1),
-        //                                     Ex(ixd, iyp + 1, izp),
-        //                                     Ex(ixd, iyp + 1, izp + 1),
-        //                                     Ex(ixd + 1, iyp, izp),
-        //                                     Ex(ixd + 1, iyp, izp + 1),
-        //                                     Ex(ixd + 1, iyp + 1, izp),
-        //                                     Ex(ixd + 1, iyp + 1, izp + 1));
-        // }
         {
           const double v00 =
-            Ex(ixd, iyp, izp) * (1 - coeffs[0]) + Ex(ixd + 1, iyp, izp) * coeffs[0];
+            Ex(ixd, iyp, izp) * (1 - dist_x_d) + Ex(ixd + 1, iyp, izp) * dist_x_d;
           const double v01 =
-            Ex(ixd, iyp, izp + 1) * (1 - coeffs[0]) + Ex(ixd + 1, iyp, izp + 1) * coeffs[0];
+            Ex(ixd, iyp, izp + 1) * (1 - dist_x_d) + Ex(ixd + 1, iyp, izp + 1) * dist_x_d;
           const double v10 =
-            Ex(ixd, iyp + 1, izp) * (1 - coeffs[0]) + Ex(ixd + 1, iyp + 1, izp) * coeffs[0];
+            Ex(ixd, iyp + 1, izp) * (1 - dist_x_d) + Ex(ixd + 1, iyp + 1, izp) * dist_x_d;
           const double v11 =
-            Ex(ixd, iyp + 1, izp + 1) * (1 - coeffs[0]) + Ex(ixd + 1, iyp + 1, izp + 1) * coeffs[0];
-          const double v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-          const double v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+            Ex(ixd, iyp + 1, izp + 1) * (1 - dist_x_d) + Ex(ixd + 1, iyp + 1, izp + 1) * dist_x_d;
+          const double v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+          const double v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-          Exp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+          Exp(part) = v0 * (1 - dist_z_p) + v1 * dist_z_p;
         }
 
         // Ey (p, d, p)
         {
-          const double coeffs[3] = {ixn, iyn + 0.5, izn};
-          //   Eyp(part)              = compute_interpolation(coeffs,
-          //                                     Ey(ixp, iyd, izp),
-          //                                     Ey(ixp, iyd, izp + 1),
-          //                                     Ey(ixp, iyd + 1, izp),
-          //                                     Ey(ixp, iyd + 1, izp + 1),
-          //                                     Ey(ixp + 1, iyd, izp),
-          //                                     Ey(ixp + 1, iyd, izp + 1),
-          //                                     Ey(ixp + 1, iyd + 1, izp),
-          //                                     Ey(ixp + 1, iyd + 1, izp + 1));
-
           const double v00 =
-            Ey(ixp, iyd, izp) * (1 - coeffs[0]) + Ey(ixp + 1, iyd, izp) * coeffs[0];
+            Ey(ixp, iyd, izp) * (1 - dist_x_p) + Ey(ixp + 1, iyd, izp) * dist_x_p;
           const double v01 =
-            Ey(ixp, iyd, izp + 1) * (1 - coeffs[0]) + Ey(ixp + 1, iyd, izp + 1) * coeffs[0];
+            Ey(ixp, iyd, izp + 1) * (1 - dist_x_p) + Ey(ixp + 1, iyd, izp + 1) * dist_x_p;
           const double v10 =
-            Ey(ixp, iyd + 1, izp) * (1 - coeffs[0]) + Ey(ixp + 1, iyd + 1, izp) * coeffs[0];
+            Ey(ixp, iyd + 1, izp) * (1 - dist_x_p) + Ey(ixp + 1, iyd + 1, izp) * dist_x_p;
           const double v11 =
-            Ey(ixp, iyd + 1, izp + 1) * (1 - coeffs[0]) + Ey(ixp + 1, iyd + 1, izp + 1) * coeffs[0];
-          const double v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-          const double v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+            Ey(ixp, iyd + 1, izp + 1) * (1 - dist_x_p) + Ey(ixp + 1, iyd + 1, izp + 1) * dist_x_p;
+          const double v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+          const double v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-          Eyp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+          Eyp(part) = v0 * (1 - dist_z_p) + v1 * dist_z_p;
         }
 
-        // // //particles_m[is].Ey_.d_view(part) = compute_interpolation(ixp, b, izp, coeffs, Ey);
         // Ez (p, p, d)
         {
-          const double coeffs[3] = {ixn, iyn, izn + 0.5};
-          //   Ezp(part)              = compute_interpolation(coeffs,
-          //                                     Ez(ixp, iyp, izd),
-          //                                     Ez(ixp, iyp, izd + 1),
-          //                                     Ez(ixp, iyp + 1, izd),
-          //                                     Ez(ixp, iyp + 1, izd + 1),
-          //                                     Ez(ixp + 1, iyp, izd),
-          //                                     Ez(ixp + 1, iyp, izd + 1),
-          //                                     Ez(ixp + 1, iyp + 1, izd),
-          //                                     Ez(ixp + 1, iyp + 1, izd + 1));
-
           const double v00 =
-            Ez(ixp, iyp, izd) * (1 - coeffs[0]) + Ez(ixp + 1, iyp, izd) * coeffs[0];
+            Ez(ixp, iyp, izd) * (1 - dist_x_p) + Ez(ixp + 1, iyp, izd) * dist_x_p;
           const double v01 =
-            Ez(ixp, iyp, izd + 1) * (1 - coeffs[0]) + Ez(ixp + 1, iyp, izd + 1) * coeffs[0];
+            Ez(ixp, iyp, izd + 1) * (1 - dist_x_p) + Ez(ixp + 1, iyp, izd + 1) * dist_x_p;
           const double v10 =
-            Ez(ixp, iyp + 1, izd) * (1 - coeffs[0]) + Ez(ixp + 1, iyp + 1, izd) * coeffs[0];
+            Ez(ixp, iyp + 1, izd) * (1 - dist_x_p) + Ez(ixp + 1, iyp + 1, izd) * dist_x_p;
           const double v11 =
-            Ez(ixp, iyp + 1, izd + 1) * (1 - coeffs[0]) + Ez(ixp + 1, iyp + 1, izd + 1) * coeffs[0];
-          const double v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-          const double v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+            Ez(ixp, iyp + 1, izd + 1) * (1 - dist_x_p) + Ez(ixp + 1, iyp + 1, izd + 1) * dist_x_p;
+          const double v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+          const double v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-          Ezp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+          Ezp(part) = v0 * (1 - dist_z_d) + v1 * dist_z_d;
         }
-        // particles_m[is].Ez_.d_view(part) = compute_interpolation(ixp, iyp, g, coeffs, Ez);
 
         // interpolation magnetic field
         // Bx (p, d, d)
         {
-          const double coeffs[3] = {ixn, iyn + 0.5, izn + 0.5};
-
-          // Bxp(part)              = compute_interpolation(coeffs,
-          //                                   Bx(ixp, iyd, izd),
-          //                                   Bx(ixp, iyd, izd + 1),
-          //                                   Bx(ixp, iyd + 1, izd),
-          //                                   Bx(ixp, iyd + 1, izd + 1),
-          //                                   Bx(ixp + 1, iyd, izd),
-          //                                   Bx(ixp + 1, iyd, izd + 1),
-          //                                   Bx(ixp + 1, iyd + 1, izd),
-          //                                   Bx(ixp + 1, iyd + 1, izd + 1));
-
           const double v00 =
-            Bx(ixp, iyd, izd) * (1 - coeffs[0]) + Bx(ixp + 1, iyd, izd) * coeffs[0];
+            Bx(ixp, iyd, izd) * (1 - dist_x_p) + Bx(ixp + 1, iyd, izd) * dist_x_p;
           const double v01 =
-            Bx(ixp, iyd, izd + 1) * (1 - coeffs[0]) + Bx(ixp + 1, iyd, izd + 1) * coeffs[0];
+            Bx(ixp, iyd, izd + 1) * (1 - dist_x_p) + Bx(ixp + 1, iyd, izd + 1) * dist_x_p;
           const double v10 =
-            Bx(ixp, iyd + 1, izd) * (1 - coeffs[0]) + Bx(ixp + 1, iyd + 1, izd) * coeffs[0];
+            Bx(ixp, iyd + 1, izd) * (1 - dist_x_p) + Bx(ixp + 1, iyd + 1, izd) * dist_x_p;
           const double v11 =
-            Bx(ixp, iyd + 1, izd + 1) * (1 - coeffs[0]) + Bx(ixp + 1, iyd + 1, izd + 1) * coeffs[0];
-          const double v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-          const double v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+            Bx(ixp, iyd + 1, izd + 1) * (1 - dist_x_p) + Bx(ixp + 1, iyd + 1, izd + 1) * dist_x_p;
+          const double v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+          const double v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-          Bxp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+          Bxp(part) = v0 * (1 - dist_z_d) + v1 * dist_z_d;
         }
-        // particles_m[is].Bx_.d_view(part) = compute_interpolation(ixp, b, g, coeffs, Bx);
 
         // By (d, p, d)
         {
-          const double coeffs[3] = {ixn + 0.5, iyn, izn + 0.5};
-
-          // Byp(part)              = compute_interpolation(coeffs,
-          //                                   By(ixd, iyp, izd),
-          //                                   By(ixd, iyp, izd + 1),
-          //                                   By(ixd, iyp + 1, izd),
-          //                                   By(ixd, iyp + 1, izd + 1),
-          //                                   By(ixd + 1, iyp, izd),
-          //                                   By(ixd + 1, iyp, izd + 1),
-          //                                   By(ixd + 1, iyp + 1, izd),
-          //                                   By(ixd + 1, iyp + 1, izd + 1));
-
           const double v00 =
-            By(ixd, iyp, izd) * (1 - coeffs[0]) + By(ixd + 1, iyp, izd) * coeffs[0];
+            By(ixd, iyp, izd) * (1 - dist_x_d) + By(ixd + 1, iyp, izd) * dist_x_d;
           const double v01 =
-            By(ixd, iyp, izd + 1) * (1 - coeffs[0]) + By(ixd + 1, iyp, izd + 1) * coeffs[0];
+            By(ixd, iyp, izd + 1) * (1 - dist_x_d) + By(ixd + 1, iyp, izd + 1) * dist_x_d;
           const double v10 =
-            By(ixd, iyp + 1, izd) * (1 - coeffs[0]) + By(ixd + 1, iyp + 1, izd) * coeffs[0];
+            By(ixd, iyp + 1, izd) * (1 - dist_x_d) + By(ixd + 1, iyp + 1, izd) * dist_x_d;
           const double v11 =
-            By(ixd, iyp + 1, izd + 1) * (1 - coeffs[0]) + By(ixd + 1, iyp + 1, izd + 1) * coeffs[0];
-          const double v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-          const double v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+            By(ixd, iyp + 1, izd + 1) * (1 - dist_x_d) + By(ixd + 1, iyp + 1, izd + 1) * dist_x_d;
+          const double v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+          const double v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-          Byp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+          Byp(part) = v0 * (1 - dist_z_d) + v1 * dist_z_d;
         }
-        // particles_m[is].By_.d_view(part) = compute_interpolation(a, iyp, g, coeffs, By);
 
         // Bz (d, d, p)
         {
-          const double coeffs[3] = {ixn + 0.5, iyn + 0.5, izn};
-
-          // Bzp(part)              = compute_interpolation(coeffs,
-          //                                   Bz(ixd, iyd, izp),
-          //                                   Bz(ixd, iyd, izp + 1),
-          //                                   Bz(ixd, iyd + 1, izp),
-          //                                   Bz(ixd, iyd + 1, izp + 1),
-          //                                   Bz(ixd + 1, iyd, izp),
-          //                                   Bz(ixd + 1, iyd, izp + 1),
-          //                                   Bz(ixd + 1, iyd + 1, izp),
-          //                                   Bz(ixd + 1, iyd + 1, izp + 1));
-
           const double v00 =
-            Bz(ixd, iyd, izp) * (1 - coeffs[0]) + Bz(ixd + 1, iyd, izp) * coeffs[0];
+            Bz(ixd, iyd, izp) * (1 - dist_x_d) + Bz(ixd + 1, iyd, izp) * dist_x_d;
           const double v01 =
-            Bz(ixd, iyd, izp + 1) * (1 - coeffs[0]) + Bz(ixd + 1, iyd, izp + 1) * coeffs[0];
+            Bz(ixd, iyd, izp + 1) * (1 - dist_x_d) + Bz(ixd + 1, iyd, izp + 1) * dist_x_d;
           const double v10 =
-            Bz(ixd, iyd + 1, izp) * (1 - coeffs[0]) + Bz(ixd + 1, iyd + 1, izp) * coeffs[0];
+            Bz(ixd, iyd + 1, izp) * (1 - dist_x_d) + Bz(ixd + 1, iyd + 1, izp) * dist_x_d;
           const double v11 =
-            Bz(ixd, iyd + 1, izp + 1) * (1 - coeffs[0]) + Bz(ixd + 1, iyd + 1, izp + 1) * coeffs[0];
-          const double v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-          const double v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+            Bz(ixd, iyd + 1, izp + 1) * (1 - dist_x_d) + Bz(ixd + 1, iyd + 1, izp + 1) * dist_x_d;
+          const double v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+          const double v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-          Bzp(part) = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+          Bzp(part) = v0 * (1 - dist_z_p) + v1 * dist_z_p;
         }
-        // particles_m[is].Bz_.d_view(part) = compute_interpolation(a, b, izp, coeffs, Bz);
       } // End for each particle
 
     ); // end KOKKOS PARALLEL
