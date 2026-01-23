@@ -151,9 +151,9 @@ void Patch::allocate(Params &param, Backend &backend, const int i, const int j, 
 #endif
     // Alloc local fields, one for each species
     // Must have 2 ghost cells in the primal direction for the projection
-    vec_Jx_m[is].allocate(nx_d_m, ny_p_m + 2, nz_p_m + 2, backend, 0.0, 1, 0, 0, "Jx");
-    vec_Jy_m[is].allocate(nx_p_m + 2, ny_d_m, nz_p_m + 2, backend, 0.0, 0, 1, 0, "Jy");
-    vec_Jz_m[is].allocate(nx_p_m + 2, ny_p_m + 2, nz_d_m, backend, 0.0, 0, 0, 1, "Jz");
+    vec_Jx_m[is].allocate(nx_d_m, ny_p_m + 2, nz_p_m + 2, backend, 0.0, 1, 0, 0, 0, 0, 0, "Jx");
+    vec_Jy_m[is].allocate(nx_p_m + 2, ny_d_m, nz_p_m + 2, backend, 0.0, 0, 1, 0, 0, 0, 0, "Jy");
+    vec_Jz_m[is].allocate(nx_p_m + 2, ny_p_m + 2, nz_d_m, backend, 0.0, 0, 0, 1, 0, 0, 0, "Jz");
 #if defined(__NVIDIA_PROFILER__)
     nvtxRangePop();
 #endif

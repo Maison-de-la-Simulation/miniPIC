@@ -75,7 +75,7 @@ public:
                 << std::endl;
 
       for (int ip = 0; ip < patches_.size(); ip++) {
-        operators::interpolate(em_, patches_[ip]);
+        operators::interpolate(params, em_, patches_[ip]);
         operators::push_momentum(patches_[ip], -0.5 * params.dt);
       }
     }
@@ -1102,7 +1102,7 @@ auto evolve_schedule(task_system &task_system,
 
             // functions using bin
             timers.start(timers.interpolate, patch_index);
-            operators::interpolate_bin(em, patches_[patch_index].particles_m[is], is, init, end);
+            operators::interpolate_bin(params, em, patches_[patch_index].particles_m[is], is, init, end);
             timers.stop(timers.interpolate, patch_index);
 
             timers.start(timers.push, patch_index);

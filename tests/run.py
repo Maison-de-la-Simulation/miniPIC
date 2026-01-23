@@ -51,7 +51,7 @@ configuration_list = {
                  'benchmarks' : [ "default", "beam", "antenna", "Ecst", "Bcst" ]},
 
     'kokkos_views_gpu' : { 'compiler' : 'clang++',
-                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos_views" -DCMAKE_BUILD_TYPE=Release -DKokkos_ROOT="/Users/mathieu/Installations/kokkos/install/"',
+                 'cmake' : '-DCMAKE_VERBOSE_MAKEFILE=ON -DBACKEND="kokkos_views" -DCMAKE_BUILD_TYPE=Release',
                  'env' : 'OMP_PROC_BIND=spread',
                  'prefix' : '',
                  'args' : [ '', '', ''],

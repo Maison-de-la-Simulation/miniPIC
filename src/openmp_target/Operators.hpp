@@ -21,11 +21,15 @@ namespace operators {
 //! \param[in] em  global electromagnetic fields
 //! \param[in] patch  patch data structure
 // ______________________________________________________________________________
-auto interpolate(ElectroMagn &em, Patch &patch) -> void {
+auto interpolate(Params &params, ElectroMagn &em, Patch &patch) -> void {
 
   const auto inv_dx_m = em.inv_dx_m;
   const auto inv_dy_m = em.inv_dy_m;
   const auto inv_dz_m = em.inv_dz_m;
+
+  const mini_float xmin = params.inf_x;
+  const mini_float ymin = params.inf_y;
+  const mini_float zmin = params.inf_z;
 
   Field<mini_float> &Ex = em.Ex_m;
   Field<mini_float> &Ey = em.Ey_m;
@@ -73,9 +77,9 @@ auto interpolate(ElectroMagn &em, Patch &patch) -> void {
       // printf("Particle %d\n", ip);
 
       // Calculate normalized positions
-      const mini_float ixn = x[ip] * inv_dx_m;
-      const mini_float iyn = y[ip] * inv_dy_m;
-      const mini_float izn = z[ip] * inv_dz_m;
+      const mini_float ixn = (x[ip] - xmin) * inv_dx_m;
+      const mini_float iyn = (y[ip] - ymin) * inv_dy_m;
+      const mini_float izn = (z[ip] - zmin) * inv_dz_m;
 
       // Compute indexes in global primal grid
       const unsigned int ixp = static_cast<unsigned int>(floor(ixn));
@@ -87,106 +91,102 @@ auto interpolate(ElectroMagn &em, Patch &patch) -> void {
       const unsigned int iyd = static_cast<unsigned int>(floor(iyn + 0.5));
       const unsigned int izd = static_cast<unsigned int>(floor(izn + 0.5));
 
-      // Compute interpolation coeff, p = primal, d = dual
-      const mini_float coeffs[3] = {ixn + 0.5, iyn, izn};
+      // Compute interpolation distances
+      const mini_float dist_x_p = ixn - ixp;
+      const mini_float dist_y_p = iyn - iyp;
+      const mini_float dist_z_p = izn - izp;
+
+      const mini_float dist_x_d = (ixn + 0.5) - ixd;
+      const mini_float dist_y_d = (iyn + 0.5) - iyd;
+      const mini_float dist_z_d = (izn + 0.5) - izd;
 
       // interpolation electric field
       // Ex (d, p , p)
-      const auto v00 = Ex(ixd, iyp, izp) * (1 - coeffs[0]) + Ex(ixd + 1, iyp, izp) * coeffs[0];
+      const auto v00 = Ex(ixd, iyp, izp) * (1 - dist_x_d) + Ex(ixd + 1, iyp, izp) * dist_x_d;
       const auto v01 =
-        Ex(ixd, iyp, izp + 1) * (1 - coeffs[0]) + Ex(ixd + 1, iyp, izp + 1) * coeffs[0];
+        Ex(ixd, iyp, izp + 1) * (1 - dist_x_d) + Ex(ixd + 1, iyp, izp + 1) * dist_x_d;
       const auto v10 =
-        Ex(ixd, iyp + 1, izp) * (1 - coeffs[0]) + Ex(ixd + 1, iyp + 1, izp) * coeffs[0];
+        Ex(ixd, iyp + 1, izp) * (1 - dist_x_d) + Ex(ixd + 1, iyp + 1, izp) * dist_x_d;
       const auto v11 =
-        Ex(ixd, iyp + 1, izp + 1) * (1 - coeffs[0]) + Ex(ixd + 1, iyp + 1, izp + 1) * coeffs[0];
+        Ex(ixd, iyp + 1, izp + 1) * (1 - dist_x_d) + Ex(ixd + 1, iyp + 1, izp + 1) * dist_x_d;
 
-      Exp[ip] = (v00 * (1 - coeffs[1]) + v10 * coeffs[1]) * (1 - coeffs[2]) +
-                (v01 * (1 - coeffs[1]) + v11 * coeffs[1]) * coeffs[2];
+      Exp[ip] = (v00 * (1 - dist_y_p) + v10 * dist_y_p) * (1 - dist_z_p) +
+                (v01 * (1 - dist_y_p) + v11 * dist_y_p) * dist_z_p;
 
       // Ey (p, d, p)
       {
-        const mini_float coeffs[3] = {ixn, iyn + 0.5, izn};
-
-        const auto v00 = Ey(ixp, iyd, izp) * (1 - coeffs[0]) + Ey(ixp + 1, iyd, izp) * coeffs[0];
+        const auto v00 = Ey(ixp, iyd, izp) * (1 - dist_x_p) + Ey(ixp + 1, iyd, izp) * dist_x_p;
         const auto v01 =
-          Ey(ixp, iyd, izp + 1) * (1 - coeffs[0]) + Ey(ixp + 1, iyd, izp + 1) * coeffs[0];
+          Ey(ixp, iyd, izp + 1) * (1 - dist_x_p) + Ey(ixp + 1, iyd, izp + 1) * dist_x_p;
         const auto v10 =
-          Ey(ixp, iyd + 1, izp) * (1 - coeffs[0]) + Ey(ixp + 1, iyd + 1, izp) * coeffs[0];
+          Ey(ixp, iyd + 1, izp) * (1 - dist_x_p) + Ey(ixp + 1, iyd + 1, izp) * dist_x_p;
         const auto v11 =
-          Ey(ixp, iyd + 1, izp + 1) * (1 - coeffs[0]) + Ey(ixp + 1, iyd + 1, izp + 1) * coeffs[0];
-        const auto v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const auto v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          Ey(ixp, iyd + 1, izp + 1) * (1 - dist_x_p) + Ey(ixp + 1, iyd + 1, izp + 1) * dist_x_p;
+        const auto v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+        const auto v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-        Eyp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Eyp[ip] = v0 * (1 - dist_z_p) + v1 * dist_z_p;
       }
 
       // Ez (p, p, d)
       {
-        const mini_float coeffs[3] = {ixn, iyn, izn + 0.5};
-
-        const auto v00 = Ez(ixp, iyp, izd) * (1 - coeffs[0]) + Ez(ixp + 1, iyp, izd) * coeffs[0];
+        const auto v00 = Ez(ixp, iyp, izd) * (1 - dist_x_p) + Ez(ixp + 1, iyp, izd) * dist_x_p;
         const auto v01 =
-          Ez(ixp, iyp, izd + 1) * (1 - coeffs[0]) + Ez(ixp + 1, iyp, izd + 1) * coeffs[0];
+          Ez(ixp, iyp, izd + 1) * (1 - dist_x_p) + Ez(ixp + 1, iyp, izd + 1) * dist_x_p;
         const auto v10 =
-          Ez(ixp, iyp + 1, izd) * (1 - coeffs[0]) + Ez(ixp + 1, iyp + 1, izd) * coeffs[0];
+          Ez(ixp, iyp + 1, izd) * (1 - dist_x_p) + Ez(ixp + 1, iyp + 1, izd) * dist_x_p;
         const auto v11 =
-          Ez(ixp, iyp + 1, izd + 1) * (1 - coeffs[0]) + Ez(ixp + 1, iyp + 1, izd + 1) * coeffs[0];
-        const auto v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const auto v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          Ez(ixp, iyp + 1, izd + 1) * (1 - dist_x_p) + Ez(ixp + 1, iyp + 1, izd + 1) * dist_x_p;
+        const auto v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+        const auto v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-        Ezp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Ezp[ip] = v0 * (1 - dist_z_d) + v1 * dist_z_d;
       }
 
       // interpolation magnetic field
       // Bx (p, d, d)
       {
-        const mini_float coeffs[3] = {ixn, iyn + 0.5, izn + 0.5};
-
-        const auto v00 = Bx(ixp, iyd, izd) * (1 - coeffs[0]) + Bx(ixp + 1, iyd, izd) * coeffs[0];
+        const auto v00 = Bx(ixp, iyd, izd) * (1 - dist_x_p) + Bx(ixp + 1, iyd, izd) * dist_x_p;
         const auto v01 =
-          Bx(ixp, iyd, izd + 1) * (1 - coeffs[0]) + Bx(ixp + 1, iyd, izd + 1) * coeffs[0];
+          Bx(ixp, iyd, izd + 1) * (1 - dist_x_p) + Bx(ixp + 1, iyd, izd + 1) * dist_x_p;
         const auto v10 =
-          Bx(ixp, iyd + 1, izd) * (1 - coeffs[0]) + Bx(ixp + 1, iyd + 1, izd) * coeffs[0];
+          Bx(ixp, iyd + 1, izd) * (1 - dist_x_p) + Bx(ixp + 1, iyd + 1, izd) * dist_x_p;
         const auto v11 =
-          Bx(ixp, iyd + 1, izd + 1) * (1 - coeffs[0]) + Bx(ixp + 1, iyd + 1, izd + 1) * coeffs[0];
-        const auto v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const auto v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          Bx(ixp, iyd + 1, izd + 1) * (1 - dist_x_p) + Bx(ixp + 1, iyd + 1, izd + 1) * dist_x_p;
+        const auto v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+        const auto v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-        Bxp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Bxp[ip] = v0 * (1 - dist_z_d) + v1 * dist_z_d;
       }
 
       // By (d, p, d)
       {
-        const mini_float coeffs[3] = {ixn + 0.5, iyn, izn + 0.5};
-
-        const auto v00 = By(ixd, iyp, izd) * (1 - coeffs[0]) + By(ixd + 1, iyp, izd) * coeffs[0];
+        const auto v00 = By(ixd, iyp, izd) * (1 - dist_x_d) + By(ixd + 1, iyp, izd) * dist_x_d;
         const auto v01 =
-          By(ixd, iyp, izd + 1) * (1 - coeffs[0]) + By(ixd + 1, iyp, izd + 1) * coeffs[0];
+          By(ixd, iyp, izd + 1) * (1 - dist_x_d) + By(ixd + 1, iyp, izd + 1) * dist_x_d;
         const auto v10 =
-          By(ixd, iyp + 1, izd) * (1 - coeffs[0]) + By(ixd + 1, iyp + 1, izd) * coeffs[0];
+          By(ixd, iyp + 1, izd) * (1 - dist_x_d) + By(ixd + 1, iyp + 1, izd) * dist_x_d;
         const auto v11 =
-          By(ixd, iyp + 1, izd + 1) * (1 - coeffs[0]) + By(ixd + 1, iyp + 1, izd + 1) * coeffs[0];
-        const auto v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const auto v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          By(ixd, iyp + 1, izd + 1) * (1 - dist_x_d) + By(ixd + 1, iyp + 1, izd + 1) * dist_x_d;
+        const auto v0 = v00 * (1 - dist_y_p) + v10 * dist_y_p;
+        const auto v1 = v01 * (1 - dist_y_p) + v11 * dist_y_p;
 
-        Byp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Byp[ip] = v0 * (1 - dist_z_d) + v1 * dist_z_d;
       }
 
       // Bz (d, d, p)
       {
-        const mini_float coeffs[3] = {ixn + 0.5, iyn + 0.5, izn};
-
-        const auto v00 = Bz(ixd, iyd, izp) * (1 - coeffs[0]) + Bz(ixd + 1, iyd, izp) * coeffs[0];
+        const auto v00 = Bz(ixd, iyd, izp) * (1 - dist_x_d) + Bz(ixd + 1, iyd, izp) * dist_x_d;
         const auto v01 =
-          Bz(ixd, iyd, izp + 1) * (1 - coeffs[0]) + Bz(ixd + 1, iyd, izp + 1) * coeffs[0];
+          Bz(ixd, iyd, izp + 1) * (1 - dist_x_d) + Bz(ixd + 1, iyd, izp + 1) * dist_x_d;
         const auto v10 =
-          Bz(ixd, iyd + 1, izp) * (1 - coeffs[0]) + Bz(ixd + 1, iyd + 1, izp) * coeffs[0];
+          Bz(ixd, iyd + 1, izp) * (1 - dist_x_d) + Bz(ixd + 1, iyd + 1, izp) * dist_x_d;
         const auto v11 =
-          Bz(ixd, iyd + 1, izp + 1) * (1 - coeffs[0]) + Bz(ixd + 1, iyd + 1, izp + 1) * coeffs[0];
-        const auto v0 = v00 * (1 - coeffs[1]) + v10 * coeffs[1];
-        const auto v1 = v01 * (1 - coeffs[1]) + v11 * coeffs[1];
+          Bz(ixd, iyd + 1, izp + 1) * (1 - dist_x_d) + Bz(ixd + 1, iyd + 1, izp + 1) * dist_x_d;
+        const auto v0 = v00 * (1 - dist_y_d) + v10 * dist_y_d;
+        const auto v1 = v01 * (1 - dist_y_d) + v11 * dist_y_d;
 
-        Bzp[ip] = v0 * (1 - coeffs[2]) + v1 * coeffs[2];
+        Bzp[ip] = v0 * (1 - dist_z_p) + v1 * dist_z_p;
       }
 
     } // end for each particles

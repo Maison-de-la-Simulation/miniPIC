@@ -14,7 +14,7 @@ variables:
   BENCHMARKS_CPU_SHORT: "default"
   BENCHMARKS_GPU_SHORT: "default_gpu"
 
-.default_run: &default_run [master, nvidia_profiling, fix_stdpar]
+.default_run: &default_run [master, nvidia_profiling, update_kokkos]
 
 # _____________________________________________________________________________
 #
@@ -40,7 +40,7 @@ workflow:
         BENCHMARKS_CPU: $BENCHMARKS_CPU_SHORT
         BENCHMARKS_GPU: $BENCHMARKS_GPU_SHORT
       when: always
-    - if: $CI_COMMIT_BRANCH =~ /master|develop|std_cpp_par/
+    - if: $CI_COMMIT_BRANCH =~ /master|develop|fix_interpolation/
       variables:
         BENCHMARKS_CPU: $BENCHMARKS_CPU_ALL
         BENCHMARKS_GPU: $BENCHMARKS_GPU_ALL
